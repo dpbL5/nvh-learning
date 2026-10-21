@@ -106,7 +106,10 @@ PHẠM VI NỘI DUNG:
 
 QUY TẮC SỬ DỤNG NGUỒN:
 - Đọc SOURCE trước, kiểm tra từng đoạn có thực sự liên quan đến chủ đề và đủ dữ kiện hay không. Kết quả truy xuất có thể không liên quan.
-- Nếu SOURCE đủ thông tin, chỉ dùng thông tin đó. Nếu không tìm thấy, không liên quan hoặc chỉ đủ một phần, được dùng kiến thức nền đáng tin cậy của AI để bổ sung phần thiếu.
+- Với kiến thức cần kiểm tra và căn cứ đáp án: nếu SOURCE đủ thông tin thì ưu tiên dùng thông tin đó; nếu không tìm thấy, không liên quan hoặc chỉ đủ một phần, được dùng kiến thức nền đáng tin cậy của AI để bổ sung phần thiếu.
+- Với bối cảnh câu hỏi: ĐƯỢC tự xây dựng tình huống mới từ kiến thức nền và thực tiễn, NGAY CẢ KHI SOURCE ĐÃ ĐỦ THÔNG TIN. Không bắt buộc tình huống, nhân vật, địa điểm, số liệu hoặc lĩnh vực ứng dụng phải xuất hiện trong RAG; không chỉ thay tên, đổi số từ ví dụ trong tài liệu.
+- Bối cảnh có thể thuộc gia đình, trường học, doanh nghiệp, sản xuất hoặc đời sống khác; kiến thức cần để trả lời vẫn phải đúng {topic}, môn {subject}, trình độ và YCCĐ của bài. Không yêu cầu học sinh biết thêm chuyên môn của lĩnh vực làm bối cảnh.
+- Được đặt dữ kiện giả định hợp lí, nhất quán và đủ để giải; trình bày rõ tính giả định, không biến chúng thành sự kiện có thật hoặc gán cho SOURCE. Trong `explanation`, ghi "Bối cảnh giả định do AI xây dựng" khi tự dựng tình huống; phân biệt với nguồn kiến thức dùng để giải.
 - Kiến thức bổ sung phải đúng môn, chủ đề, trình độ THPT và yêu cầu cần đạt (YCCĐ) của bài; không mượn kiến thức bài khác để tăng độ khó. Không tự bịa YCCĐ hay năng lực số (NLS) khi chưa có trong SOURCE.
 - Trong `explanation`, ghi nguồn theo tên tài liệu thực sự được sử dụng; nếu có bổ sung, ghi rõ "Kiến thức nền bổ sung ngoài tài liệu lớp học". Không gán kiến thức bổ sung cho SOURCE.
 - Không có công cụ tìm kiếm web trong lượt này: không tự nhận đã tra cứu Internet, không bịa URL, trích dẫn, số liệu cập nhật hay nội dung tài liệu không được cung cấp.
@@ -131,7 +134,7 @@ CẤU TRÚC CHI TIẾT (TUÂN THỦ TUYỆT ĐỐI):
 
 2. true_false (Trắc nghiệm Đúng/Sai):
    - `question_text`: Nội dung câu hỏi / Tiêu đề (ngắn gọn, ví dụ: "Về sự ăn mòn kim loại").
-   - `context`: BẮT BUỘC là một tình huống thực tế hoặc giả định hợp lí, khoảng 5–10 dòng hoặc ít hơn, chỉ có dữ kiện cần thiết liên quan đến {topic}; không nói hộ đáp án.
+   - `context`: BẮT BUỘC là một tình huống thực tế hoặc giả định hợp lí, được phép mở rộng ngoài bối cảnh trong RAG theo quy tắc nguồn ở trên; khoảng 5–10 dòng hoặc ít hơn, chỉ có dữ kiện cần thiết liên quan đến {topic}; không nói hộ đáp án.
    - Bối cảnh CHỈ cung cấp dữ kiện tình huống: đối tượng, số liệu, trạng thái, cấu hình, hành động, quan sát hoặc yêu cầu thực tế. KHÔNG cung cấp định nghĩa, công thức, quy tắc, chức năng, quan hệ nguyên nhân–kết quả hay cách giải mà học sinh đang cần nhớ lại để trả lời. Kiến thức đó chỉ được trình bày trong `explanation`.
    - `text`: Câu chuyển tiếp gắn với bối cảnh, ví dụ "Một số học sinh đưa ra các nhận định sau về [vấn đề cụ thể]:". Không ghi nhãn "Tình huống", không dùng "Hãy xác định Đúng hay Sai".
    - ĐÚNG 4 phát biểu trong `options`, cùng thuộc một câu hỏi. CẢ BỐN ý, kể cả ý Nhận biết, phải phụ thuộc vào dữ kiện cụ thể trong `context`; bối cảnh không được chỉ là lời dẫn trang trí.
@@ -174,7 +177,7 @@ VÍ DỤ CẤU TRÚC JSON CHO CÂU HỎI ĐÚNG SAI (không sao chép nội dung
   {{
     "question_type": "true_false",
     "question_text": "Về mạng máy tính trong nhà trường",
-    "context": "Phòng tin học có 30 máy tính để bàn không có Wi-Fi, nối cáp qua một switch đặt trong phòng. Buổi học trước, các máy học sinh đã mở được tệp từ máy giáo viên; cấu hình và quyền truy cập được giữ nguyên. Giáo viên đặt tệp bài tập vào thư mục chia sẻ trên máy của mình; các máy học sinh được quyền đọc, chưa được quyền ghi. Trong giờ học, đường truyền Internet bị gián đoạn nhưng switch và các máy vẫn hoạt động bình thường. Cáp mạng của máy An bị rút khỏi switch, còn máy Bình vẫn nối với switch. Giáo viên cần phát bài ngay cho các máy còn kết nối và cho phép Bình nộp tệp vào thư mục đó.",
+    "context": "Giả sử phòng tin học có 30 máy tính để bàn không có Wi-Fi, nối cáp qua một switch đặt trong phòng. Buổi học trước, các máy học sinh đã mở được tệp từ máy giáo viên; cấu hình và quyền truy cập được giữ nguyên. Giáo viên đặt tệp bài tập vào thư mục chia sẻ trên máy của mình; các máy học sinh được quyền đọc, chưa được quyền ghi. Trong giờ học, đường truyền Internet bị gián đoạn nhưng switch và các máy vẫn hoạt động bình thường. Cáp mạng của máy An bị rút khỏi switch, còn máy Bình vẫn nối với switch. Giáo viên cần phát bài ngay cho các máy còn kết nối và cho phép Bình nộp tệp vào thư mục đó.",
     "text": "Một số học sinh đưa ra các nhận định sau về cách chia sẻ tệp trong phòng tin học:",
     "difficulty": "{difficulty}",
     "topic": "{topic}",
@@ -185,7 +188,7 @@ VÍ DỤ CẤU TRÚC JSON CHO CÂU HỎI ĐÚNG SAI (không sao chép nội dung
       {{"text": "Với quyền đang được cấp, Bình có thể nộp bài bằng cách sao chép tệp từ máy mình vào thư mục chia sẻ của giáo viên.", "is_correct": false}},
       {{"text": "Giáo viên có thể phát bài ngay qua thư mục chia sẻ cho các máy còn nối switch, đồng thời cấp quyền ghi cho Bình để em nộp tệp vào đó.", "is_correct": true}}
     ],
-    "explanation": "a) Nhận biết, Đúng: các máy nối qua switch trong cùng phòng, trao đổi dữ liệu nội bộ, nên thuộc mạng LAN. b) Thông hiểu, Sai: máy An bị rút cáp và không có Wi-Fi nên mất kết nối để mở tệp từ máy giáo viên. c) Vận dụng, Sai: Bình được quyền đọc nhưng chưa được quyền ghi; sao chép tệp vào thư mục cần quyền ghi. d) Vận dụng, Đúng: switch và các máy còn nối cáp vẫn hoạt động, cấu hình cho phép trao đổi nội bộ nên việc phát bài không cần Internet; Bình vẫn nối switch và có thể nộp vào thư mục khi được cấp quyền ghi. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
+    "explanation": "a) Nhận biết, Đúng: các máy nối qua switch trong cùng phòng, trao đổi dữ liệu nội bộ, nên thuộc mạng LAN. b) Thông hiểu, Sai: máy An bị rút cáp và không có Wi-Fi nên mất kết nối để mở tệp từ máy giáo viên. c) Vận dụng, Sai: Bình được quyền đọc nhưng chưa được quyền ghi; sao chép tệp vào thư mục cần quyền ghi. d) Vận dụng, Đúng: switch và các máy còn nối cáp vẫn hoạt động, cấu hình cho phép trao đổi nội bộ nên việc phát bài không cần Internet; Bình vẫn nối switch và có thể nộp vào thư mục khi được cấp quyền ghi. Bối cảnh giả định do AI xây dựng. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
   }}
 ]
 
