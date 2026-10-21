@@ -67,6 +67,7 @@ Switch là thiết bị có chức năng kết nối các thiết bị mạng tr
 **Phần dẫn (bối cảnh):**
 - Đưa ra một tình huống thực tiễn hoặc giả định phù hợp thực tiễn.
 - Viết tình huống giả định thành một đoạn tường thuật khách quan: giới thiệu đơn vị/con người và hoạt động → hiện trạng, dữ liệu hoặc điều kiện → nhu cầu/mục tiêu dự định thực hiện. Các câu nối tự nhiên và phục vụ các nhận định; không bắt buộc tạo đối thoại, nhân vật phụ hoặc biến cố bất ngờ.
+- Chọn hoạt động thực tế có ý nghĩa trong lĩnh vực ứng dụng: có nhu cầu, dữ kiện/ràng buộc và giải pháp cần đánh giá. Không dùng “trong một buổi học, giáo viên hướng dẫn học sinh…”, tiết thực hành hoặc bài tập đóng vai. Trường học vẫn có thể là đơn vị có nhu cầu vận hành thực, như quản lí thư viện hoặc triển khai mạng.
 - Có thể tự xây dựng bối cảnh ngoài RAG từ kiến thức nền, ngay cả khi RAG đủ thông tin; kiến thức cần kiểm tra vẫn đúng chủ đề/YCCĐ, không đòi thêm chuyên môn ngoài bài. Ghi rõ tình huống giả định, không gán dữ kiện tự dựng cho tài liệu.
 - Ngắn gọn: khoảng 5–10 dòng hoặc ít hơn.
 - Chỉ cung cấp dữ kiện tình huống (số liệu, trạng thái, cấu hình, hành động, quan sát); không cung cấp định nghĩa, công thức, quy tắc hoặc cách giải đang kiểm tra. Học sinh phải tự nhớ lại kiến thức đã học để áp dụng.
@@ -78,6 +79,7 @@ Switch là thiết bị có chức năng kết nối các thiết bị mạng tr
 - Cả bốn ý, kể cả Nhận biết, phải dùng dữ kiện quyết định trong bối cảnh. Không dùng phát biểu lý thuyết chung rồi thêm tên nhân vật hoặc cụm “trong tình huống trên”.
 - Tự kiểm tra từng ý: **che bối cảnh** thì chưa đủ cơ sở kết luận; **đổi dữ kiện quyết định** một cách hợp lí thì có thể đảo đáp án. Nếu không đạt, viết lại ý hỏi.
 - Mỗi ý phải cần cả **kiến thức đã học** và **dữ kiện bối cảnh**. Nếu chỉ đọc hoặc đối chiếu câu chữ trong bối cảnh là trả lời được thì viết lại; kiến thức dùng để giải thích chỉ trình bày trong lời giải.
+- Câu liên kết gọi đúng hoạt động/hệ thống đang xét; không thêm cảnh giáo viên và học sinh thảo luận. Ý Vận dụng phải dùng dữ kiện/ràng buộc để đánh giá phương án hoặc giải quyết nhu cầu thực tế đã nêu.
 - Bối cảnh phải đủ dữ kiện, không nói sẵn kết luận; không đánh dấu Sai chỉ vì thông tin không được đề cập. Lời giải từng ý phải nêu dữ kiện đã dùng và kiến thức áp dụng để kết luận.
 
 ---
