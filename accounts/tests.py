@@ -77,6 +77,101 @@ class AccountsAuthTests(APITestCase):
         self.assertEqual(refresh_res.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
+class ProfileTests(APITestCase):
+    def setUp(self):
+        self.student_role, _ = Role.objects.get_or_create(name=Role.STUDENT)
+        self.user = User.objects.create_user(
+            username="profile_user",
+            email="profile_user@example.com",
+            password="ProfilePass123",
+            role=self.student_role,
+            first_name="Old",
+            last_name="Name",
+        )
+        self.other_user = User.objects.create_user(
+            username="profile_other",
+            email="profile_other@example.com",
+            password="OtherPass123",
+            role=self.student_role,
+        )
+
+    def _auth(self):
+        login_res = self.client.post(
+            "/api/accounts/login/",
+            {"username": "profile_user", "password": "ProfilePass123"},
+            format="json",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login_res.data['access']}")
+
+    def test_update_profile(self):
+        self._auth()
+        res = self.client.patch(
+            "/api/accounts/me/",
+            {
+                "first_name": "New",
+                "last_name": "Student",
+                "email": "new_email@example.com",
+                "avatar_url": "https://res.cloudinary.com/demo/image/upload/avatar.png",
+            },
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "New")
+        self.assertEqual(self.user.last_name, "Student")
+        self.assertEqual(self.user.email, "new_email@example.com")
+        self.assertEqual(self.user.role.name, Role.STUDENT)
+
+    def test_update_profile_rejects_duplicate_email(self):
+        self._auth()
+        res = self.client.patch(
+            "/api/accounts/me/",
+            {"email": self.other_user.email},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "profile_user@example.com")
+
+    def test_change_password(self):
+        self._auth()
+        res = self.client.post(
+            "/api/accounts/me/password/",
+            {"current_password": "ProfilePass123", "new_password": "NewProfilePass456"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewProfilePass456"))
+
+    def test_change_password_rejects_wrong_current_password(self):
+        self._auth()
+        res = self.client.post(
+            "/api/accounts/me/password/",
+            {"current_password": "WrongPass123", "new_password": "NewProfilePass456"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("ProfilePass123"))
+
+    def test_change_password_rejects_weak_password(self):
+        self._auth()
+        res = self.client.post(
+            "/api/accounts/me/password/",
+            {"current_password": "ProfilePass123", "new_password": "123"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("ProfilePass123"))
+
+
 class AccountsAdminPermissionTests(APITestCase):
     def setUp(self):
         self.student_role, _ = Role.objects.get_or_create(name=Role.STUDENT)

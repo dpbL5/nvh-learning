@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    RegisterView, MeView, CustomTokenObtainPairView, CookieTokenRefreshView, LogoutView,
+    RegisterView, MeView, ChangePasswordView, CustomTokenObtainPairView, CookieTokenRefreshView, LogoutView,
     UserListView, UserDetailView, DashboardStatsView, AdminReportView, AdminExportView
 )
 
@@ -10,6 +10,7 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
     path('me/', MeView.as_view(), name='me'),
+    path('me/password/', ChangePasswordView.as_view(), name='change-password'),
     path('stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
     # Admin-only
     path('users/', UserListView.as_view(), name='user-list'),

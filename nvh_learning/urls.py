@@ -40,6 +40,7 @@ urlpatterns = [
     path('admin-panel/', core_views.admin_panel_view, name='admin-panel'),
     path('logout/', core_views.logout_view, name='logout'),
     path('notifications/', core_views.notifications_view, name='notifications'),
+    path('profile/', core_views.profile_view, name='profile'),
 ]
 
 if settings.DEBUG:

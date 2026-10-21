@@ -49,3 +49,6 @@ def logout_view(request):
 
 def notifications_view(request):
     return render(request, 'notifications.html')
+
+def profile_view(request):
+    return render(request, 'profile.html')

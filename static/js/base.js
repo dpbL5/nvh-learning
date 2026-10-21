@@ -166,12 +166,12 @@ window.updateNavbarUI = function(user) {
         </button>
         <div class="nav-divider"></div>
 
-        <div class="d-flex align-items-center gap-2 px-2">
-            <div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;">
-                ${escapeHtml(initials.toUpperCase())}
-            </div>
+        <a href="/profile/" class="d-flex align-items-center gap-2 px-2 text-decoration-none" title="Thông tin cá nhân" style="color:inherit;">
+            ${user.avatar_url
+                ? `<img src="${escapeHtml(user.avatar_url)}" alt="" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">`
+                : `<div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;">${escapeHtml(initials.toUpperCase())}</div>`}
             <span style="font-size:0.82rem;color:rgba(255,255,255,0.85);font-weight:500;">${escapeHtml(user.first_name || user.username)}</span>
-        </div>
+        </a>
         <div class="nav-divider"></div>
         <button class="nav-btn nav-btn-logout" onclick="doLogout()"><i class="bi bi-box-arrow-right"></i> Thoát</button>
     `;
