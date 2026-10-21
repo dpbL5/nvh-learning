@@ -147,7 +147,6 @@ const AIGenerator = {
 
     async handleRagGeneration() {
         const topic = (document.getElementById('ragTopic')?.value || '').trim();
-        if (!topic) return;
 
         const btn = document.getElementById('btnGenerateRAG');
         const loader = document.getElementById('ragLoading');
@@ -178,7 +177,6 @@ const AIGenerator = {
                     class_id: document.getElementById('ragClass')?.value,
                     topic,
                     count: parseInt(document.getElementById('ragCount')?.value || '5', 10),
-                    difficulty: document.getElementById('ragDifficulty')?.value,
                     question_types: document.getElementById('ragQuestionTypes')?.value,
                     document_id: document.getElementById('ragDocument')?.value || null,
                 }),
@@ -186,8 +184,11 @@ const AIGenerator = {
 
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Lỗi sinh câu hỏi từ RAG.');
+            if (!Array.isArray(data.questions) || data.questions.length === 0) {
+                throw new Error(data.error || 'AI chưa tạo được câu hỏi. Hãy kiểm tra yêu cầu cần đạt và tài liệu bài học được chọn.');
+            }
 
-            this.currentDrafts.rag = Array.isArray(data.questions) ? data.questions : [];
+            this.currentDrafts.rag = data.questions;
             this.renderDraftBoard('rag');
             if (saveBtn && this.currentDrafts.rag.length) saveBtn.style.display = 'inline-block';
         } catch (err) {
@@ -211,7 +212,7 @@ const AIGenerator = {
 
         board.innerHTML = drafts.map((q, index) => {
             const typeLabel = this.getTypeBadge(q.question_type);
-            const diffLabel = this.getDiffBadge(q.difficulty);
+            const diffLabel = source === 'rag' ? '' : this.getDiffBadge(q.difficulty);
             const unresolved = !this.hasConfiguredAnswer(q);
             let contextHtml = '';
             // true_false: renderQuestionStem already renders question_text + context, skip here

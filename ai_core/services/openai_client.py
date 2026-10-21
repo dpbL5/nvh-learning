@@ -64,61 +64,36 @@ def generate_content(
     else:
         messages_content.append({"type": "text", "text": str(contents)})
 
-    # Prepare for new Responses API (Separating instructions from input)
-    system_instruction = ""
-    user_input = []
-    
-    for msg in messages_content:
-        if msg.get('role') == 'system':
-            system_instruction = msg.get('text', '')
-        else:
-            user_input.append(msg)
-    
-    # If no system role was found in list, check if some items were just strings
-    if not system_instruction and messages_content and messages_content[0].get('type') == 'text':
-        # Often first message can be treated as instruction if it's broad
-        # But for now we'll stick to standard message list for 'input'
-        pass
-
-    is_reasoning_model = any(selected_model.startswith(prefix) for prefix in ["o1-", "o1", "o3-", "o3", "o4-", "o4"])
+    is_reasoning_model = selected_model.startswith(('o1', 'o3', 'o4', 'gpt-5', 'gpt-6'))
     
     request_payload: Dict[str, Any] = {
         'model': selected_model,
         'messages': [{"role": "user", "content": messages_content}],
+        'max_completion_tokens': (config or {}).get('max_output_tokens', 4096),
     }
 
-    if is_reasoning_model:
-        request_payload['max_completion_tokens'] = (config or {}).get('max_output_tokens', 4096)
-    else:
-        request_payload['max_tokens'] = (config or {}).get('max_output_tokens', 4096)
+    if not is_reasoning_model:
         request_payload['temperature'] = (config or {}).get('temperature', 0.2)
 
     # support more fields from config
     for k in ['top_p', 'frequency_penalty', 'presence_penalty']:
-        if config and k in config:
+        if config and k in config and not is_reasoning_model:
             request_payload[k] = config[k]
 
     if (config or {}).get('response_mime_type') == 'application/json':
         request_payload['response_format'] = {"type": "json_object"}
 
-    try:
-        response = _client.chat.completions.create(**request_payload)
-    except Exception as e:
-        # If the error suggests using max_completion_tokens, retry once.
-        err_msg = str(e).lower()
-        if 'max_tokens' in err_msg and 'max_completion_tokens' in err_msg:
-            if 'max_tokens' in request_payload:
-                val = request_payload.pop('max_tokens')
-                request_payload['max_completion_tokens'] = val
-                request_payload.pop('temperature', None) # Reasoning models usually don't support temperature
-                print(f"[OpenAI] Auto-retry: switching max_tokens to max_completion_tokens for model {selected_model}")
-                response = _client.chat.completions.create(**request_payload)
-            else:
-                raise
-        else:
-            raise
-
-    content_text = response.choices[0].message.content.strip()
+    response = _client.chat.completions.create(**request_payload)
+    if not response.choices:
+        raise ValueError('OpenAI không trả về phản hồi.')
+    choice = response.choices[0]
+    if choice.finish_reason == 'length':
+        raise ValueError('Phản hồi OpenAI bị cắt do hết giới hạn token.')
+    if choice.finish_reason == 'content_filter' or choice.message.refusal:
+        raise ValueError('OpenAI không thể trả lời yêu cầu này.')
+    content_text = (choice.message.content or '').strip()
+    if not content_text:
+        raise ValueError('OpenAI trả về nội dung rỗng.')
     
     # Return an object with a .text attribute for parity with Gemini response
     return type('OpenAIResponse', (), {'text': content_text})

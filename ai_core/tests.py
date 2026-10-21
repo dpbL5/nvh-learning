@@ -9,9 +9,81 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import Role, User
-from ai_core.models import Document
-from ai_core.services.ai_generator import AIGeneratorService
+from ai_core.models import Document, DocumentChunk
+from ai_core.services.ai_generator import AIGeneratorService, NoQuestionsGenerated
+from ai_core.services import openai_client
 from classes.models import Class, ClassStudent, Subject
+
+
+class OpenAIClientTests(SimpleTestCase):
+    def setUp(self):
+        self.client_patch = patch('ai_core.services.openai_client._client')
+        self.client = self.client_patch.start()
+        self.addCleanup(self.client_patch.stop)
+        self.choice = SimpleNamespace(
+            finish_reason='stop',
+            message=SimpleNamespace(content='{"questions": []}', refusal=None),
+        )
+        self.client.chat.completions.create.return_value = SimpleNamespace(choices=[self.choice])
+
+    def test_luna_uses_completion_tokens_without_retry_or_sampling(self):
+        response = openai_client.generate_content('Trả về JSON.', model='gpt-6-luna', config={
+            'response_mime_type': 'application/json', 'max_output_tokens': 8192,
+            'temperature': 0.2, 'top_p': 0.9,
+        })
+        self.client.chat.completions.create.assert_called_once()
+        payload = self.client.chat.completions.create.call_args.kwargs
+        self.assertEqual(payload['model'], 'gpt-6-luna')
+        self.assertEqual(payload['max_completion_tokens'], 8192)
+        self.assertNotIn('max_tokens', payload)
+        self.assertNotIn('temperature', payload)
+        self.assertNotIn('top_p', payload)
+        self.assertEqual(payload['response_format'], {'type': 'json_object'})
+        self.assertEqual(AIGeneratorService._parse_model_json(response.text), [])
+
+    def test_legacy_model_keeps_sampling_settings(self):
+        openai_client.generate_content('Xin chào.', model='gpt-4o-mini', config={'temperature': 0.1})
+        payload = self.client.chat.completions.create.call_args.kwargs
+        self.assertEqual(payload['temperature'], 0.1)
+        self.assertNotIn('response_format', payload)
+
+    def test_incomplete_refused_or_empty_response_raises(self):
+        for reason, content, refusal in (
+            ('length', '{"questions": []}', None),
+            ('content_filter', None, None),
+            ('stop', None, 'Refused'),
+            ('stop', None, None),
+            ('stop', '  ', None),
+        ):
+            with self.subTest(reason=reason, content=content, refusal=refusal):
+                self.choice.finish_reason = reason
+                self.choice.message.content = content
+                self.choice.message.refusal = refusal
+                with self.assertRaises(ValueError):
+                    openai_client.generate_content('Tạo câu hỏi.', model='gpt-6-luna')
+        self.client.chat.completions.create.return_value.choices = []
+        with self.assertRaises(ValueError):
+            openai_client.generate_content('Tạo câu hỏi.', model='gpt-6-luna')
+
+
+class AIQuestionJSONTests(SimpleTestCase):
+    def test_accepts_wrapped_and_legacy_lists_including_empty(self):
+        for questions in ([], [{'text': 'Câu hỏi mẫu'}]):
+            for payload in (questions, {'questions': questions}, {'items': questions}):
+                for text in (json.dumps(payload), f'```json\n{json.dumps(payload)}\n```'):
+                    with self.subTest(text=text):
+                        self.assertEqual(AIGeneratorService._parse_model_json(text), questions)
+
+    def test_rejects_missing_question_list_and_invalid_json(self):
+        for text in ('{}', '{"questions": null}', '{"options": []}', '{"error": "Failed"}', 'null', 'not JSON'):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                AIGeneratorService._parse_model_json(text)
+
+    def test_keeps_recovery_of_legacy_truncated_arrays(self):
+        self.assertEqual(
+            AIGeneratorService._parse_model_json('[{"text": "Câu 1"}, {"text": "Câu 2'),
+            [{'text': 'Câu 1'}],
+        )
 
 
 class RAGServiceTests(SimpleTestCase):
@@ -31,6 +103,7 @@ class RAGServiceTests(SimpleTestCase):
     def test_generation_without_rag_preserves_question_types_and_explanation(self, classrooms):
         classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
         self.retrieved.return_value = []
+        learning_outcomes = 'Nêu được chức năng của switch.\nLựa chọn thiết bị phù hợp để kết nối mạng.'
         for question_type in ('multiple_choice', 'true_false', 'short_answer'):
             with self.subTest(question_type=question_type):
                 draft = {
@@ -43,9 +116,9 @@ class RAGServiceTests(SimpleTestCase):
                         {'text': f'Phương án {i}', 'is_correct': i == 0} for i in range(4)
                     ],
                 }
-                self.ai.generate_content.return_value.text = json.dumps([draft])
+                self.ai.generate_content.return_value.text = json.dumps({'questions': [draft]})
                 result = AIGeneratorService.generate_from_rag(
-                    'Mạng máy tính', 1, 'medium', 'class-1', question_type, document_id=7,
+                    learning_outcomes, 1, 'class-1', question_type, document_id=7,
                 )
                 self.assertEqual(len(result), 1)
                 self.assertEqual(result[0]['question_type'], question_type)
@@ -56,6 +129,7 @@ class RAGServiceTests(SimpleTestCase):
                 self.assertIn('Không tìm thấy nội dung trong tài liệu lớp học', prompt)
                 self.assertIn(f'"question_type\": "{question_type}"', prompt)
                 self.assertIn('Tin học', prompt)
+                self.assertIn(f'<learning_outcomes>\n{learning_outcomes}\n</learning_outcomes>', prompt)
         self.chunks.filter.assert_called_with(document__classroom_id='class-1')
         self.query.filter.assert_called_with(document_id=7)
 
@@ -82,7 +156,7 @@ class RAGServiceTests(SimpleTestCase):
                 }
                 self.ai.generate_content.return_value.text = json.dumps([draft])
                 result = AIGeneratorService.generate_from_rag(
-                    'Mạng máy tính', 1, 'medium', 'class-1', 'true_false',
+                    'Mạng máy tính', 1, 'class-1', 'true_false',
                 )
                 self.assertEqual(len(result), 1)
                 self.assertEqual(tuple(o['is_correct'] for o in result[0]['options']), answers)
@@ -105,11 +179,45 @@ class RAGServiceTests(SimpleTestCase):
             document=SimpleNamespace(title='Bài học khác'),
         )]
         self.ai.generate_content.return_value.text = '[]'
-        self.assertEqual(AIGeneratorService.generate_from_rag('Mạng máy tính', 2, 'hard', 'class-1'), [])
+        with self.assertRaisesMessage(NoQuestionsGenerated, 'AI không nêu lý do'):
+            AIGeneratorService.generate_from_rag('Mạng máy tính', 2, 'class-1')
         prompt = self.ai.generate_content.call_args.args[0]
         self.assertIn('[Bài học khác]: Nội dung không liên quan', prompt)
         self.assertIn('Kết quả truy xuất có thể không liên quan', prompt)
         self.assertIn('được dùng kiến thức nền đáng tin cậy', prompt)
+
+    @patch('classes.models.Class.objects')
+    def test_empty_generation_reports_reason_or_actionable_fallback(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = []
+        reason = 'Cần bổ sung nội dung chức năng của thiết bị được yêu cầu trong bài.'
+        for payload, expected in (
+            ({'questions': [], 'reason': reason}, reason),
+            ({'questions': [], 'reason': '  '}, 'AI không nêu lý do'),
+            ({'questions': [], 'reason': []}, 'AI không nêu lý do'),
+            ([], 'AI không nêu lý do'),
+        ):
+            with self.subTest(payload=payload):
+                self.ai.generate_content.return_value.text = json.dumps(payload)
+                with self.assertRaisesMessage(NoQuestionsGenerated, expected):
+                    AIGeneratorService.generate_from_rag('Nêu được chức năng của switch.', 1, 'class-1')
+
+    @patch('classes.models.Class.objects')
+    def test_generation_rejects_questions_removed_by_normalization(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = []
+        self.ai.generate_content.return_value.text = '{"questions": [{"text": ""}]}'
+        with self.assertRaisesMessage(ValueError, 'thiếu nội dung hợp lệ'):
+            AIGeneratorService.generate_from_rag('Nêu được chức năng của switch.', 1, 'class-1')
+
+    @patch('classes.models.Class.objects')
+    def test_no_outcomes_and_no_document_content_does_not_call_ai(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.query.order_by.return_value.__getitem__.return_value = []
+        with self.assertRaisesMessage(NoQuestionsGenerated, 'Chưa có nội dung tài liệu'):
+            AIGeneratorService.generate_from_rag('  ', 1, 'class-1')
+        self.ai.embed_content.assert_not_called()
+        self.ai.generate_content.assert_not_called()
 
     def test_tutor_answers_with_and_without_retrieved_context(self):
         chunk = SimpleNamespace(content='Máy tính kết nối qua switch.', document=SimpleNamespace(title='Bài LAN'))
@@ -234,11 +342,72 @@ class AICoreApiTests(APITestCase):
 		res = self.client.post('/api/ai/generate/from-rag/', payload, format='json')
 		self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
+	@patch('ai_core.services.ai_generator.ai_client')
+	def test_generate_from_rag_with_optional_outcomes_uses_selected_document(self, ai):
+		self.client.force_authenticate(user=self.teacher)
+		content = 'Switch kết nối các thiết bị trong mạng cục bộ; Access Point kết nối thiết bị Wi-Fi vào mạng có dây.'
+		DocumentChunk.objects.create(document=self.document, chunk_index=0, content=content)
+		ai.generate_content.return_value.text = json.dumps({'questions': [{
+			'question_type': 'short_answer', 'text': 'Câu hỏi mẫu', 'correct_answer_text': '42',
+		}]})
+		for extra in ({}, {'topic': None}, {'topic': ''}, {'topic': '  '}):
+			with self.subTest(extra=extra):
+				res = self.client.post('/api/ai/generate/from-rag/', {
+					'class_id': str(self.classroom.id), 'document_id': self.document.id,
+					'count': 1, 'question_types': 'short_answer', **extra,
+				}, format='json')
+				self.assertEqual(res.status_code, status.HTTP_200_OK)
+				self.assertEqual(len(res.data['questions']), 1)
+				self.assertIn(content, ai.generate_content.call_args.args[0])
+		ai.embed_content.assert_not_called()
+
+	@patch('ai_core.views.AIGeneratorService.generate_from_rag', return_value=[{'text': 'Câu hỏi mẫu'}])
+	def test_generate_from_rag_ignores_legacy_difficulty(self, generate):
+		self.client.force_authenticate(user=self.teacher)
+		for extra in ({}, {'difficulty': 'hard'}):
+			with self.subTest(extra=extra):
+				generate.reset_mock()
+				payload = {
+					'class_id': str(self.classroom.id),
+					'topic': 'Nêu được chức năng của switch.\nLựa chọn thiết bị kết nối mạng phù hợp.',
+					'count': 3, 'question_types': 'true_false', **extra,
+				}
+				res = self.client.post('/api/ai/generate/from-rag/', payload, format='json')
+				self.assertEqual(res.status_code, status.HTTP_200_OK)
+				self.assertEqual(res.data['questions'], generate.return_value)
+				generate.assert_called_once_with(
+					topic=payload['topic'], count=3, class_id=str(self.classroom.id),
+					question_types='true_false', document_id=None,
+				)
+
 	def test_generate_from_rag_forbidden_for_student(self):
 		self._auth('student_ai', 'StudentPass123')
 		payload = {'class_id': str(self.classroom.id), 'topic': 'Chu de A'}
 		res = self.client.post('/api/ai/generate/from-rag/', payload, format='json')
 		self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+	@patch('ai_core.views.AIGeneratorService.generate_from_rag', return_value=[])
+	def test_generate_from_rag_never_returns_200_for_empty_questions(self, generate):
+		self.client.force_authenticate(user=self.teacher)
+		for reason in (None, 'Cần bổ sung kiến thức được yêu cầu trong bài.'):
+			with self.subTest(reason=reason):
+				generate.side_effect = NoQuestionsGenerated(reason) if reason else None
+				res = self.client.post('/api/ai/generate/from-rag/', {
+					'class_id': str(self.classroom.id), 'topic': 'Nêu được chức năng của switch.',
+				}, format='json')
+				self.assertEqual(res.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+				self.assertNotIn('questions', res.data)
+				self.assertIn(reason or 'kiểm tra yêu cầu cần đạt', res.data['error'])
+
+	@patch('ai_core.views.AIGeneratorService.generate_from_rag', side_effect=ValueError('Invalid AI JSON'))
+	def test_generate_from_rag_returns_error_for_invalid_ai_response(self, generate):
+		self.client.force_authenticate(user=self.teacher)
+		res = self.client.post('/api/ai/generate/from-rag/', {
+			'class_id': str(self.classroom.id), 'topic': 'Nêu được chức năng của switch.',
+		}, format='json')
+		self.assertEqual(res.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+		self.assertIn('Phản hồi AI không hợp lệ', res.data['error'])
+		self.assertNotIn('questions', res.data)
 
 	@patch('ai_core.views.AIGeneratorService.ingest_document', side_effect=Exception('boom'))
 	@patch('ai_core.views.delete_from_cloudinary')

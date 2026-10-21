@@ -99,22 +99,13 @@
                                         <div id="ragDocumentStatus" class="text-muted small mt-1"></div>
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold small">Chủ đề / Phạm vi</label>
-                                        <input type="text" class="form-control" id="ragTopic" placeholder="VD: Ester, mạng máy tính, trí tuệ nhân tạo..." required>
+                                        <label class="form-label fw-bold small" for="ragTopic">Yêu cầu cần đạt <span class="text-muted fw-normal">(tùy chọn)</span></label>
+                                        <textarea class="form-control" id="ragTopic" rows="3" maxlength="500" aria-describedby="ragTopicHelp" placeholder="VD: Nêu được chức năng của switch và Access Point; lựa chọn thiết bị phù hợp để kết nối mạng trong tình huống cụ thể."></textarea>
+                                        <div class="form-text" id="ragTopicHelp">Để trống để AI sinh câu hỏi theo nội dung tài liệu đã chọn.</div>
                                     </div>
-                                    <div class="row g-2 mb-3">
-                                        <div class="col-6">
-                                            <label class="form-label fw-bold small">Số lượng câu</label>
-                                            <input type="number" class="form-control" id="ragCount" value="5" min="1" max="20">
-                                        </div>
-                                        <div class="col-6">
-                                            <label class="form-label fw-bold small">Độ khó</label>
-                                            <select class="form-select" id="ragDifficulty">
-                                                <option value="easy">Nhận biết</option>
-                                                <option value="medium" selected>Thông hiểu</option>
-                                                <option value="hard">Vận dụng</option>
-                                            </select>
-                                        </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold small" for="ragCount">Số lượng câu</label>
+                                        <input type="number" class="form-control" id="ragCount" value="5" min="1" max="20">
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label fw-bold small">Dạng câu hỏi muốn tạo</label>

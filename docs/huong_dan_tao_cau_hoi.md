@@ -1,5 +1,7 @@
 # Hướng Dẫn Tạo Câu Hỏi Trắc Nghiệm
 
+Trong form sinh câu hỏi AI, **Yêu cầu cần đạt là tùy chọn** (tối đa 500 ký tự, có thể nhiều dòng), ví dụ: “Nêu được chức năng của switch và Access Point; lựa chọn thiết bị phù hợp để kết nối mạng trong tình huống cụ thể.” Khi có YCCĐ, prompt dùng động từ, đối tượng kiến thức/kỹ năng và giới hạn để chọn nhiệm vụ đánh giá. Khi để trống, AI xác định nội dung cần đánh giá từ tài liệu đã chọn hoặc tài liệu của lớp, không tự gán đó thành YCCĐ chính thức của SGK. Mỗi câu và từng ý Đúng/Sai phải bám phạm vi này; nếu không có cả YCCĐ lẫn nội dung tài liệu thì hệ thống báo cần bổ sung.
+
 ---
 
 ## 1. Trắc Nghiệm Nhiều Lựa Chọn (Multiple Choice — MCQ)
@@ -68,6 +70,8 @@ Switch là thiết bị có chức năng kết nối các thiết bị mạng tr
 - Chọn kiến thức cần kiểm tra → dựng tình huống và bốn nhận định → giải thử độc lập từng ý → bổ sung điều kiện còn thiếu → chốt đáp án và lời giải.
 - Khi giải thử: tách dữ kiện/yêu cầu/giả thiết riêng → xác định kiến thức cần dùng → đối chiếu nhận định → kiểm tra điều kiện có thể đổi kết luận. Không chọn trước mẫu Đ/S rồi sửa nội dung cho khớp.
 - Không ép số lượng hoặc vị trí ý Đúng/Sai; cả bốn ý cùng đúng hoặc cùng sai vẫn hợp lệ nếu có căn cứ. Bước chuẩn hóa giữ nguyên đáp án từng ý, không tự lật đáp án.
+- Kiến thức để giải phải thuộc nội dung bài học/SGK và YCCĐ của bài, kể cả phương án nhiễu và lời giải. Tăng yêu cầu tư duy bằng cách kết hợp/vận dụng kiến thức đã học; không thêm kiến thức bài/lớp khác như Gateway khi bài chưa học. Khi thiếu nguồn và chưa xác định chắc phạm vi bài thì không suy đoán để sinh câu hỏi.
+- Form sinh câu hỏi không chọn “Độ khó”. Mức nhận thức được xác định ở từng ý, không gán một mức chung cho cả câu Đúng/Sai.
 
 **Phần dẫn (bối cảnh):**
 - Đưa ra một tình huống thực tiễn hoặc giả định phù hợp thực tiễn.
@@ -82,7 +86,7 @@ Switch là thiết bị có chức năng kết nối các thiết bị mạng tr
 **Phần câu hỏi:**
 - Gồm **4 ý hỏi đúng/sai** (a, b, c, d).
 - Mỗi ý có một kết luận trọng tâm; không ghép hai kết luận độc lập khiến một phần đúng, một phần sai. Điều kiện ảnh hưởng đáp án phải được nêu rõ, tránh phủ định kép và từ đánh giá không có tiêu chí.
-- 4 ý phải thể hiện đủ **3 mức nhận thức**: Nhận biết — Thông hiểu — Vận dụng.
+- Mỗi câu có đủ **Biết (B) — Hiểu (H) — Vận dụng (VD)**, theo một trong ba cơ cấu: **2B + 1H + 1VD**, **1B + 2H + 1VD**, **1B + 1H + 2VD**. Đa dạng cơ cấu giữa các câu, sắp ý từ Biết đến Hiểu rồi Vận dụng; ghi đúng mức của từng ý trong lời giải.
 - Ý Nhận biết/Thông hiểu có thể nhận diện thành phần hoặc giải thích vai trò của đối tượng cụ thể trong bối cảnh, như giao thức trong URL hoặc vai trò tên miền. Không bắt buộc thay dữ kiện phải đảo đáp án của kiến thức nền; không thêm tên nhân vật vào lý thuyết không liên quan.
 - Mỗi ý đánh giá lựa chọn, thao tác, cách sử dụng dữ liệu hoặc kết quả cụ thể trong hoạt động của thực thể. Tránh “nâng cao hiệu quả”, “cần dữ liệu chính xác” và những nhận định dùng được cho mọi tình huống. Không chép lại toàn bộ dữ kiện quyết định vào từng ý, khiến học sinh không cần đọc bối cảnh.
 - Tự kiểm tra ý Vận dụng: nếu bỏ bối cảnh mà vẫn giải được thì viết lại để cần dùng dữ kiện/ràng buộc cụ thể.
@@ -170,4 +174,4 @@ Trình tự áp dụng: xác định kiến thức/năng lực cần đo → ch�
 - [University of Waterloo – Exam Questions: Types, Characteristics, and Suggestions](https://uwaterloo.ca/centre-for-teaching-excellence/catalogs/tip-sheets/exam-questions-types-characteristics-and-suggestions): mỗi ý Đúng/Sai có một ý trung tâm, tránh câu phức tạp, phủ định kép, khái quát quá rộng và từ ngữ mơ hồ. Áp dụng bằng cách tách các kết luận độc lập và giải thích cách sửa ý Sai.
 - [NBME – Item-Writing Guide, chương 2–3 và 5–6](https://www.nbme.org/sites/default/files/2021-02/NBME_Item%20Writing%20Guide_R_6.pdf): chú trọng áp dụng kiến thức qua dữ kiện tình huống; đáp án Đúng/Sai cần rõ, tránh phụ thuộc giả định ngầm hoặc mẹo đoán. Tài liệu thuộc lĩnh vực y khoa và ưu tiên câu một đáp án tốt nhất; ở đây chỉ vận dụng nguyên tắc viết/rà soát, không chuyển định dạng đề sang NBME.
 - [OECD – PISA 2018 Science Framework, Organisation of the domain và Cognitive demand](https://www.oecd.org/en/publications/pisa-2018-assessment-and-analytical-framework_b25efab8-en/full-report/component-5.html): thiết kế nhiệm vụ gắn kiến thức, năng lực, bối cảnh và yêu cầu tư duy. Áp dụng vào Tin học bằng cách xác định điều cần đánh giá trước khi dựng tình huống thực tế, không chỉ thêm câu chuyện vào câu hỏi ghi nhớ.
-- [Cục Quản lý chất lượng – Cấu trúc định dạng đề thi tốt nghiệp THPT từ năm 2025](https://vqa.moet.gov.vn/vi/news/thong-bao/cau-truc-dinh-dang-de-thi-tot-nghiep-thpt-tu-nam-2025-74.html): dạng Đúng/Sai có bốn ý, trả lời từng ý. Việc ưu tiên thứ tự NB–TH–VD–VD, dùng bối cảnh ngoài RAG và không dùng cảnh dạy học là yêu cầu thiết kế của dự án, không phải quy định được suy ra từ các nguồn quốc tế.
+- [Cục Quản lý chất lượng – Cấu trúc định dạng đề thi tốt nghiệp THPT từ năm 2025](https://vqa.moet.gov.vn/vi/news/thong-bao/cau-truc-dinh-dang-de-thi-tot-nghiep-thpt-tu-nam-2025-74.html): dạng Đúng/Sai có bốn ý, trả lời từng ý. Ba cơ cấu mức nhận thức 2B–1H–1VD, 1B–2H–1VD, 1B–1H–2VD, dùng bối cảnh ngoài RAG và không dùng cảnh dạy học là yêu cầu thiết kế của dự án, không phải quy định được suy ra từ các nguồn quốc tế.

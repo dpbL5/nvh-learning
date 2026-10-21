@@ -32,7 +32,7 @@ from exams.views import (
     _get_owned_quiz,
     rebalance_quiz_question_points,
 )
-from .services.ai_generator import AIGeneratorService
+from .services.ai_generator import AIGeneratorService, NoQuestionsGenerated
 from .services.ai_provider import get_client
 from .services.cloudinary_service import (
     cloudinary_asset_from_url,
@@ -570,15 +570,12 @@ class AIGenerateFromRAGView(APIView):
 
     def post(self, request):
         class_id = request.data.get('class_id')
-        topic = str(request.data.get('topic') or '')[:500]
+        topic = str(request.data.get('topic') or '').strip()[:500]
         try:
             count = int(request.data.get('count', 5))
         except (TypeError, ValueError):
             return Response({"error": "Số lượng câu hỏi không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
         count = max(1, min(count, 50))
-        difficulty = request.data.get('difficulty', 'medium')
-        if difficulty not in ('easy', 'medium', 'hard'):
-            difficulty = 'medium'
         question_types = request.data.get('question_types', 'multiple_choice')
         if question_types not in ('multiple_choice', 'true_false', 'short_answer', 'mixed'):
             question_types = 'multiple_choice'
@@ -586,8 +583,6 @@ class AIGenerateFromRAGView(APIView):
 
         if not class_id:
             return Response({"error": "Thiếu class_id."}, status=status.HTTP_400_BAD_REQUEST)
-        if not topic.strip():
-            return Response({"error": "Thiếu chủ đề (topic)."}, status=status.HTTP_400_BAD_REQUEST)
         if document_id:
             try:
                 document_id = int(document_id)
@@ -600,18 +595,23 @@ class AIGenerateFromRAGView(APIView):
             questions_data = AIGeneratorService.generate_from_rag(
                 topic=topic,
                 count=count,
-                difficulty=difficulty,
                 class_id=class_id,
                 question_types=question_types,
                 document_id=document_id,
             )
+            if not questions_data:
+                raise NoQuestionsGenerated('AI chưa tạo được câu hỏi. Hãy kiểm tra yêu cầu cần đạt và tài liệu bài học được chọn.')
             return Response({"questions": questions_data})
 
+        except NoQuestionsGenerated as e:
+            return Response({"error": str(e)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         except Exception as e:
             logger.exception('AI RAG generation failed')
             msg = str(e)
             if "429" in msg or "quota" in msg.lower():
                 msg = "Hệ thống AI đạt giới hạn (429). Hãy đợi một lát hoặc giảm số lượng câu hỏi cần sinh."
+            elif isinstance(e, ValueError):
+                msg = "Phản hồi AI không hợp lệ hoặc bị cắt. Vui lòng thử lại với ít câu hỏi hơn."
             else:
                 msg = "Không thể sinh câu hỏi. Vui lòng thử lại sau."
             return Response({"error": msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
