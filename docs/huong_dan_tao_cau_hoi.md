@@ -75,12 +75,14 @@ Switch là thiết bị có chức năng kết nối các thiết bị mạng tr
 
 **Phần câu hỏi:**
 - Gồm **4 ý hỏi đúng/sai** (a, b, c, d).
+- Mỗi ý có một kết luận trọng tâm; không ghép hai kết luận độc lập khiến một phần đúng, một phần sai. Điều kiện ảnh hưởng đáp án phải được nêu rõ, tránh phủ định kép và từ đánh giá không có tiêu chí.
 - 4 ý phải thể hiện đủ **3 mức nhận thức**: Nhận biết — Thông hiểu — Vận dụng.
 - Cả bốn ý, kể cả Nhận biết, phải dùng dữ kiện quyết định trong bối cảnh. Không dùng phát biểu lý thuyết chung rồi thêm tên nhân vật hoặc cụm “trong tình huống trên”.
 - Tự kiểm tra từng ý: **che bối cảnh** thì chưa đủ cơ sở kết luận; **đổi dữ kiện quyết định** một cách hợp lí thì có thể đảo đáp án. Nếu không đạt, viết lại ý hỏi.
 - Mỗi ý phải cần cả **kiến thức đã học** và **dữ kiện bối cảnh**. Nếu chỉ đọc hoặc đối chiếu câu chữ trong bối cảnh là trả lời được thì viết lại; kiến thức dùng để giải thích chỉ trình bày trong lời giải.
 - Câu liên kết gọi đúng hoạt động/hệ thống đang xét; không thêm cảnh giáo viên và học sinh thảo luận. Ý Vận dụng phải dùng dữ kiện/ràng buộc để đánh giá phương án hoặc giải quyết nhu cầu thực tế đã nêu.
 - Bối cảnh phải đủ dữ kiện, không nói sẵn kết luận; không đánh dấu Sai chỉ vì thông tin không được đề cập. Lời giải từng ý phải nêu dữ kiện đã dùng và kiến thức áp dụng để kết luận.
+- Ý Sai phản ánh một hiểu nhầm hợp lí; lời giải phải chỉ chỗ sai và cách sửa. Tự phản biện xem điều kiện chưa nêu hoặc cách hiểu hợp lí khác có thể đảo đáp án hay không; nếu có thì sửa câu hỏi trước khi xuất.
 
 ---
 
@@ -151,3 +153,12 @@ d) Hiện nay giáo viên và học sinh có thể đăng ký mượn thiết b�
 - **Đúng/Sai, trang 3–4:** Bối cảnh có thể gồm nhiệm vụ kèm đoạn mã HTML, chương trình, hồ sơ dữ liệu hoặc lược đồ cơ sở dữ liệu. Câu liên kết gọi đúng đối tượng đang phân tích; bốn ý xét thành phần, ý nghĩa, kết quả và phương án thay đổi/xử lí. Mỗi ý được đánh giá độc lập, có thể đặt giả thiết riêng.
 - **Áp dụng vào hệ thống:** Giữ yêu cầu mỗi ý cần cả dữ kiện bối cảnh và kiến thức đã học, đủ ba mức nhận thức. Bối cảnh ngoài RAG vẫn được phép. Ví dụ trong prompt tường thuật việc một trung tâm bảo hành lưu hồ sơ máy giặt và muốn xây dựng hệ thống dự đoán nhu cầu thay linh kiện; bốn ý xét mô hình học, nhãn dữ liệu, cách đánh giá và phạm vi đầu ra.
 - **Tự rà soát:** Tính hoặc mô phỏng kết quả, đối chiếu tên trường/thuộc tính, điều kiện, đơn vị và từng đáp án. Sai sót trong một phương án phải có chủ đích và được giải thích; không để lỗi vô ý trong dữ kiện làm câu hỏi mơ hồ.
+
+## 5. Nguyên tắc thiết kế câu hỏi và nguồn tham khảo
+
+Trình tự áp dụng: xác định kiến thức/năng lực cần đo → chọn nhiệm vụ vận dụng → dựng bối cảnh đủ dữ kiện → viết từng ý và đáp án → rà soát cách hiểu khác. Đây là cách vận dụng các nguyên tắc dưới đây vào prompt; chất lượng câu sinh ra vẫn cần được kiểm tra thực tế.
+
+- [University of Waterloo – Exam Questions: Types, Characteristics, and Suggestions](https://uwaterloo.ca/centre-for-teaching-excellence/catalogs/tip-sheets/exam-questions-types-characteristics-and-suggestions): mỗi ý Đúng/Sai có một ý trung tâm, tránh câu phức tạp, phủ định kép, khái quát quá rộng và từ ngữ mơ hồ. Áp dụng bằng cách tách các kết luận độc lập và giải thích cách sửa ý Sai.
+- [NBME – Item-Writing Guide, chương 2–3 và 5–6](https://www.nbme.org/sites/default/files/2021-02/NBME_Item%20Writing%20Guide_R_6.pdf): chú trọng áp dụng kiến thức qua dữ kiện tình huống; đáp án Đúng/Sai cần rõ, tránh phụ thuộc giả định ngầm hoặc mẹo đoán. Tài liệu thuộc lĩnh vực y khoa và ưu tiên câu một đáp án tốt nhất; ở đây chỉ vận dụng nguyên tắc viết/rà soát, không chuyển định dạng đề sang NBME.
+- [OECD – PISA 2018 Science Framework, Organisation of the domain và Cognitive demand](https://www.oecd.org/en/publications/pisa-2018-assessment-and-analytical-framework_b25efab8-en/full-report/component-5.html): thiết kế nhiệm vụ gắn kiến thức, năng lực, bối cảnh và yêu cầu tư duy. Áp dụng vào Tin học bằng cách xác định điều cần đánh giá trước khi dựng tình huống thực tế, không chỉ thêm câu chuyện vào câu hỏi ghi nhớ.
+- [Cục Quản lý chất lượng – Cấu trúc định dạng đề thi tốt nghiệp THPT từ năm 2025](https://vqa.moet.gov.vn/vi/news/thong-bao/cau-truc-dinh-dang-de-thi-tot-nghiep-thpt-tu-nam-2025-74.html): dạng Đúng/Sai có bốn ý, trả lời từng ý. Việc ưu tiên thứ tự NB–TH–VD–VD, dùng bối cảnh ngoài RAG và không dùng cảnh dạy học là yêu cầu thiết kế của dự án, không phải quy định được suy ra từ các nguồn quốc tế.
