@@ -132,13 +132,16 @@ CẤU TRÚC CHI TIẾT (TUÂN THỦ TUYỆT ĐỐI):
 2. true_false (Trắc nghiệm Đúng/Sai):
    - `question_text`: Nội dung câu hỏi / Tiêu đề (ngắn gọn, ví dụ: "Về sự ăn mòn kim loại").
    - `context`: BẮT BUỘC là một tình huống thực tế hoặc giả định hợp lí, khoảng 5–10 dòng hoặc ít hơn, chỉ có dữ kiện cần thiết liên quan đến {topic}; không nói hộ đáp án.
+   - Bối cảnh CHỈ cung cấp dữ kiện tình huống: đối tượng, số liệu, trạng thái, cấu hình, hành động, quan sát hoặc yêu cầu thực tế. KHÔNG cung cấp định nghĩa, công thức, quy tắc, chức năng, quan hệ nguyên nhân–kết quả hay cách giải mà học sinh đang cần nhớ lại để trả lời. Kiến thức đó chỉ được trình bày trong `explanation`.
    - `text`: Câu chuyển tiếp gắn với bối cảnh, ví dụ "Một số học sinh đưa ra các nhận định sau về [vấn đề cụ thể]:". Không ghi nhãn "Tình huống", không dùng "Hãy xác định Đúng hay Sai".
    - ĐÚNG 4 phát biểu trong `options`, cùng thuộc một câu hỏi. CẢ BỐN ý, kể cả ý Nhận biết, phải phụ thuộc vào dữ kiện cụ thể trong `context`; bối cảnh không được chỉ là lời dẫn trang trí.
    - Khi soạn từng ý, xác định dữ kiện quyết định trong bối cảnh và kiến thức cần dùng để kết luận. Không hỏi định nghĩa/chân lí chung, không chỉ thêm tên nhân vật hoặc cụm "trong tình huống trên" vào một phát biểu lý thuyết. Ý Nhận biết phải nhận diện đối tượng/đặc điểm qua dữ kiện, không chép lại nguyên văn bối cảnh.
    - KIỂM TRA CHE BỐI CẢNH cho từng ý: chỉ đọc phát biểu và dùng kiến thức môn học thì chưa đủ cơ sở kết luận Đúng/Sai. Nếu vẫn kết luận chắc chắn được thì viết lại ý đó. KIỂM TRA ĐỔI DỮ KIỆN: phải chỉ ra được một thay đổi hợp lí của dữ kiện quyết định trong bối cảnh có thể làm đảo đáp án; nếu không có thì ý hỏi chưa gắn bối cảnh.
-   - Bối cảnh phải cung cấp đủ dữ kiện để kết luận rõ ràng cho cả bốn ý, nhưng không nói sẵn kết luận; không lấy việc "không được đề cập" làm căn cứ đánh dấu Sai. Các ý khai thác các khía cạnh khác nhau của tình huống, không lặp một suy luận bốn lần.
+   - Bối cảnh phải cung cấp đủ dữ kiện tình huống để KẾT HỢP VỚI KIẾN THỨC ĐÃ HỌC mà kết luận rõ ràng cho cả bốn ý; không lấy việc "không được đề cập" làm căn cứ đánh dấu Sai. Các ý khai thác các khía cạnh khác nhau của tình huống, không lặp một suy luận bốn lần.
+   - KIỂM TRA NHỚ LẠI KIẾN THỨC: với từng ý, xác định kiến thức đã học nào học sinh phải tự nhớ lại mà bối cảnh không cung cấp. Nếu chỉ cần đọc, chép hoặc đối chiếu câu chữ trong bối cảnh là trả lời được, phải bỏ phần lý thuyết làm lộ đáp án hoặc viết lại ý hỏi. Mỗi ý bắt buộc cần cả kiến thức đã học lẫn dữ kiện bối cảnh.
    - `explanation` của TỪNG ý phải nêu dữ kiện cụ thể đã dùng, kiến thức/quan hệ áp dụng và kết luận Đúng/Sai; không chỉ nhắc lại lý thuyết chung. Tự sửa mọi ý không vượt qua hai phép kiểm tra trên trước khi xuất.
    - Mỗi câu đủ Nhận biết, Thông hiểu, Vận dụng; ưu tiên thứ tự NB, TH, VD, VD. `difficulty` vẫn giữ giá trị được yêu cầu; ghi mức nhận thức và giải thích Đúng/Sai từng ý trong `explanation`.
+   - Nhận biết: nhớ khái niệm/đặc điểm để nhận diện đối tượng trong tình huống. Thông hiểu: dùng kiến thức đã học để giải thích hoặc suy luận từ dữ kiện. Vận dụng: kết hợp dữ kiện với kiến thức đã học để đánh giá cách xử lí, dự đoán kết quả hoặc lựa chọn giải pháp; không chỉ đổi nhãn mức nhận thức cho một ý hỏi đọc hiểu.
    - PHẢI TỒN TẠI ÍT NHẤT 1 phát biểu đúng (is_correct: true) và ít nhất 1 phát biểu sai.
    - TUYỆT ĐỐI KHÔNG ĐƯỢC: tất cả đều đúng hoặc tất cả đều sai.
    - Đa dạng cơ cấu 2Đ–2S, 1Đ–3S, 3Đ–1S và vị trí Đ/S trong bộ câu hỏi. Ý sai phải sai về kiến thức hoặc dữ kiện, không do diễn đạt mơ hồ.
@@ -171,7 +174,7 @@ VÍ DỤ CẤU TRÚC JSON CHO CÂU HỎI ĐÚNG SAI (không sao chép nội dung
   {{
     "question_type": "true_false",
     "question_text": "Về mạng máy tính trong nhà trường",
-    "context": "Phòng tin học có 30 máy tính để bàn không có Wi-Fi, nối cáp qua switch trong cùng phòng và có cấu hình địa chỉ IP hợp lệ để trao đổi dữ liệu nội bộ. Giáo viên đặt tệp bài tập vào thư mục chia sẻ trên máy của mình; các máy học sinh được quyền đọc, chưa được quyền ghi. Trong giờ học, đường truyền Internet bị gián đoạn nhưng switch và các máy vẫn hoạt động bình thường. Cáp mạng của máy An bị rút khỏi switch, còn máy Bình vẫn nối với switch. Giáo viên cần phát bài ngay cho các máy còn kết nối và cho phép Bình nộp tệp vào thư mục đó.",
+    "context": "Phòng tin học có 30 máy tính để bàn không có Wi-Fi, nối cáp qua một switch đặt trong phòng. Buổi học trước, các máy học sinh đã mở được tệp từ máy giáo viên; cấu hình và quyền truy cập được giữ nguyên. Giáo viên đặt tệp bài tập vào thư mục chia sẻ trên máy của mình; các máy học sinh được quyền đọc, chưa được quyền ghi. Trong giờ học, đường truyền Internet bị gián đoạn nhưng switch và các máy vẫn hoạt động bình thường. Cáp mạng của máy An bị rút khỏi switch, còn máy Bình vẫn nối với switch. Giáo viên cần phát bài ngay cho các máy còn kết nối và cho phép Bình nộp tệp vào thư mục đó.",
     "text": "Một số học sinh đưa ra các nhận định sau về cách chia sẻ tệp trong phòng tin học:",
     "difficulty": "{difficulty}",
     "topic": "{topic}",
