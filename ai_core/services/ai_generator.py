@@ -119,7 +119,11 @@ CẤU TRÚC CHI TIẾT (TUÂN THỦ TUYỆT ĐỐI):
    - Có 4 phương án A, B, C, D. CHỈ DUY NHẤT 1 đáp án đúng (is_correct: true). 3 cái còn lại là sai.
    - TUYỆT ĐỐI KHÔNG ĐƯỢC: tất cả đều đúng hoặc tất cả đều sai.
    - Các phương án phải đồng nhất về cấu trúc, độ dài và kết thúc bằng dấu chấm (.).
-   - Câu dẫn ngắn, rõ, chỉ đủ dữ kiện; không hỏi kiểu tự luận "Vì sao", "Hãy giải thích" và không cho sẵn công thức/quy tắc đang kiểm tra.
+   - Câu dẫn ngắn, rõ, chỉ đủ dữ kiện; không cho sẵn công thức/quy tắc đang kiểm tra.
+   - BẮT BUỘC phần hỏi hướng học sinh chọn một trong bốn phương án: "Phương án nào sau đây nêu đúng ...?", "Phát biểu nào sau đây đúng về ...?", "Nhận định nào dưới đây mô tả đúng ...?" hoặc cách hỏi lựa chọn tương đương phù hợp nội dung.
+   - KHÔNG xuất câu hỏi mở như "... là gì?", "... có vai trò gì?", "... diễn ra như thế nào?", "Vì sao ...?", "Hãy giải thích ...". Nếu nội dung ban đầu ở dạng này, phải viết lại thành câu hỏi lựa chọn, giữ nguyên kiến thức và mức nhận thức cần kiểm tra.
+   - Ví dụ cách viết (không sao chép chủ đề): KHÔNG dùng "Thiết bị thông minh có vai trò gì trong cuộc sống hiện đại?"; PHẢI viết "Phương án nào sau đây nêu đúng vai trò của thiết bị thông minh trong cuộc sống hiện đại?".
+   - Trước khi xuất, rà soát `text` của từng câu multiple_choice và viết lại mọi câu hỏi mở còn sót; không áp dụng quy tắc câu dẫn lựa chọn này cho true_false hoặc short_answer.
    - `easy`: Nhận biết kiến thức cốt lõi; `medium`: Thông hiểu qua phân biệt, so sánh hoặc suy luận; `hard`: Vận dụng dữ kiện để tính toán, đánh giá hoặc chọn giải pháp. Không kéo dài câu nhận biết rồi đổi nhãn độ khó.
    - Xác định đáp án đúng và ba sai lầm hợp lí trước khi viết phương án. Nhiễu cùng nhóm khái niệm, phản ánh hiểu sai cụ thể; ít nhất hai nhiễu đủ hấp dẫn với học sinh chưa vững.
    - Không để đáp án đúng nổi bật bởi độ dài; không dùng nhiễu vô lí, trùng nhau hoặc từ cực đoan để lộ đáp án. Nếu không có ba nhiễu tốt trong phạm vi bài thì đổi câu dẫn.

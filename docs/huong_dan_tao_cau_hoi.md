@@ -10,7 +10,9 @@ Tạo câu hỏi trắc nghiệm với **4 phương án trả lời**: 1 đáp �
 
 **Yêu cầu phần dẫn:**
 - Ngắn gọn, rõ ý, không hỏi theo kiểu tự luận.
-- Có thể dùng các mẫu câu như: *"Phương án nào dưới đây..."*, *"Phát biểu nào sau đây..."*, *"Định nghĩa nào nêu đúng về..."*
+- Bắt buộc hỏi theo dạng lựa chọn: *"Phương án nào sau đây nêu đúng...?"*, *"Phát biểu nào sau đây đúng về...?"*, *"Định nghĩa nào nêu đúng về...?"* hoặc cách hỏi tương đương.
+- Không dùng câu hỏi mở như *"... là gì?"*, *"... có vai trò gì?"*, *"... diễn ra như thế nào?"*. Viết lại thành câu hỏi lựa chọn, giữ nguyên kiến thức và mức nhận thức cần kiểm tra.
+- Ví dụ: *"Thiết bị thông minh có vai trò gì trong cuộc sống hiện đại?"* → *"Phương án nào sau đây nêu đúng vai trò của thiết bị thông minh trong cuộc sống hiện đại?"*
 
 **Yêu cầu các phương án:**
 - Đồng nhất về cấu trúc và độ dài.
