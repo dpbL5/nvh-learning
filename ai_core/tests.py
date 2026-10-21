@@ -1,11 +1,93 @@
+import json
+from types import SimpleNamespace
 from unittest.mock import patch
+
+from django.test import SimpleTestCase
 
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import Role, User
 from ai_core.models import Document
+from ai_core.services.ai_generator import AIGeneratorService
 from classes.models import Class, ClassStudent, Subject
+
+
+class RAGServiceTests(SimpleTestCase):
+    def setUp(self):
+        self.ai_patch = patch('ai_core.services.ai_generator.ai_client')
+        self.ai = self.ai_patch.start()
+        self.addCleanup(self.ai_patch.stop)
+        self.ai.embed_content.return_value = [0.0] * 768
+        self.chunks_patch = patch('ai_core.models.DocumentChunk.objects')
+        self.chunks = self.chunks_patch.start()
+        self.addCleanup(self.chunks_patch.stop)
+        self.query = self.chunks.filter.return_value
+        self.query.filter.return_value = self.query
+        self.retrieved = self.query.annotate.return_value.order_by.return_value.__getitem__
+
+    @patch('classes.models.Class.objects')
+    def test_generation_without_rag_preserves_question_types_and_explanation(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = []
+        for question_type in ('multiple_choice', 'true_false', 'short_answer'):
+            with self.subTest(question_type=question_type):
+                draft = {
+                    'question_type': question_type,
+                    'text': 'Câu hỏi mẫu',
+                    'context': 'Bối cảnh mẫu' if question_type == 'true_false' else '',
+                    'explanation': 'Lời giải. Kiến thức nền bổ sung ngoài tài liệu lớp học.',
+                    'correct_answer_text': '42' if question_type == 'short_answer' else '',
+                    'options': [] if question_type == 'short_answer' else [
+                        {'text': f'Phương án {i}', 'is_correct': i == 0} for i in range(4)
+                    ],
+                }
+                self.ai.generate_content.return_value.text = json.dumps([draft])
+                result = AIGeneratorService.generate_from_rag(
+                    'Mạng máy tính', 1, 'medium', 'class-1', question_type, document_id=7,
+                )
+                self.assertEqual(len(result), 1)
+                self.assertEqual(result[0]['question_type'], question_type)
+                self.assertEqual(result[0]['explanation'], draft['explanation'])
+                self.assertEqual(result[0]['correct_answer_text'], draft['correct_answer_text'])
+                self.assertEqual(len(result[0]['options']), len(draft['options']))
+                prompt = self.ai.generate_content.call_args.args[0]
+                self.assertIn('Không tìm thấy nội dung trong tài liệu lớp học', prompt)
+                self.assertIn(f'"question_type\": "{question_type}"', prompt)
+                self.assertIn('Tin học', prompt)
+        self.chunks.filter.assert_called_with(document__classroom_id='class-1')
+        self.query.filter.assert_called_with(document_id=7)
+
+    @patch('classes.models.Class.objects')
+    def test_generation_keeps_retrieved_source_and_requires_relevance_check(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = [SimpleNamespace(
+            content='Nội dung không liên quan đến mạng máy tính.',
+            document=SimpleNamespace(title='Bài học khác'),
+        )]
+        self.ai.generate_content.return_value.text = '[]'
+        self.assertEqual(AIGeneratorService.generate_from_rag('Mạng máy tính', 2, 'hard', 'class-1'), [])
+        prompt = self.ai.generate_content.call_args.args[0]
+        self.assertIn('[Bài học khác]: Nội dung không liên quan', prompt)
+        self.assertIn('Kết quả truy xuất có thể không liên quan', prompt)
+        self.assertIn('được dùng kiến thức nền đáng tin cậy', prompt)
+
+    def test_tutor_answers_with_and_without_retrieved_context(self):
+        chunk = SimpleNamespace(content='Máy tính kết nối qua switch.', document=SimpleNamespace(title='Bài LAN'))
+        for chunks in ([], [chunk]):
+            with self.subTest(has_context=bool(chunks)):
+                self.retrieved.return_value = chunks
+                self.ai.generate_content.return_value.text = 'Câu trả lời mẫu'
+                self.assertEqual(AIGeneratorService.chat_with_tutor('class-1', 'LAN là gì?'), 'Câu trả lời mẫu')
+                prompt = self.ai.generate_content.call_args.args[0]
+                self.assertIn('LAN là gì?', prompt)
+                self.assertIn('[Bài LAN]' if chunks else 'Không tìm thấy nội dung trong tài liệu lớp học', prompt)
+                self.assertIn('Kiến thức nền bổ sung ngoài tài liệu lớp học', prompt)
+                self.assertIn('Đọc SOURCE trước', prompt)
+        self.chunks.filter.assert_called_with(document__classroom_id='class-1')
+        self.ai.embed_content.assert_called_with(
+            content='LAN là gì?', task_type='RETRIEVAL_QUERY', output_dimensionality=768,
+        )
 
 
 class AICoreApiTests(APITestCase):

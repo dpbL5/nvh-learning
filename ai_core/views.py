@@ -130,7 +130,7 @@ class RAGChatbotView(APIView):
             
             payload = {
                 "answer": chatbot_answer,
-                "sources": [{"doc": "Kiến thức nội bộ lớp học"}]
+                "sources": []
             }
             cache.set(response_cache_key, payload, timeout=180)
 

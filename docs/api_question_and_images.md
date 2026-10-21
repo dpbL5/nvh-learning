@@ -87,7 +87,16 @@ Do đã gộp vào Payload chính của Question, các API rời rạc này ch�
   - Trả về JSON Draft Array.
 
 ### POST `/api/ai/generate/from-rag/`
-- **Mục đích:** Sinh câu hỏi từ RAG (Thư viện tri thức).
+- **Mục đích:** Sinh câu hỏi ưu tiên RAG (Thư viện tri thức). Khi tài liệu rỗng, không liên quan hoặc chưa đủ thông tin, AI được bổ sung kiến thức nền đúng môn/chủ đề và trình độ THPT.
+- **Chất lượng:** Câu dẫn ngắn, phương án nhiễu từ hiểu sai hợp lí; Đúng/Sai có đúng 4 ý gắn với bối cảnh. Số lượng, loại câu và độ khó vẫn theo request, không cố định theo tài liệu hướng dẫn mẫu.
+- **Lời giải:** Trường `explanation` gồm căn cứ đáp án và tên tài liệu sử dụng; phần ngoài RAG được ghi rõ “Kiến thức nền bổ sung ngoài tài liệu lớp học”. Trường này được giữ khi chuẩn hóa và lưu bulk.
+- **Giới hạn:** Bổ sung bằng kiến thức sẵn có của mô hình, chưa có tìm kiếm web trực tiếp; không bịa nội dung riêng của lớp, URL hoặc thông tin cập nhật. Nếu không đủ cơ sở tạo câu hỏi chính xác, trả về danh sách rỗng.
+
+### POST `/api/ai/chat/`
+- **Mục đích:** Hướng dẫn học sinh bằng tiếng Việt, ưu tiên nội dung RAG liên quan; giải thích từng bước và hỏi lại nếu thiếu dữ kiện quyết định.
+- **Khi RAG thiếu:** Vẫn trả lời bằng kiến thức nền đáng tin cậy, ghi rõ phần bổ sung ngoài tài liệu. Câu hỏi về nội dung riêng của lớp chưa được cung cấp sẽ được hỏi lại thay vì suy đoán.
+- **Nguồn:** `answer` nêu tên tài liệu thực sự sử dụng và phân biệt kiến thức bổ sung. `sources` là mảng rỗng vì hiện chưa có trích dẫn được xác minh tự động; không gắn nhãn mọi câu trả lời là kiến thức nội bộ.
+- **Giới hạn:** Chưa tìm kiếm web trực tiếp. Quyền truy cập lớp và giới hạn tần suất giữ nguyên.
 
 ### POST `/api/ai/generate/save-bulk/`
 - **Mục đích:** Lưu hàng loạt câu hỏi AI trích xuất (Drafts) vào Database thực sự.
