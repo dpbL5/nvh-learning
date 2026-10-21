@@ -103,6 +103,7 @@ function hasConfiguredAnswer(q) {
     const type = q?.question_type || 'multiple_choice';
     if (type === 'short_answer') return !!(q?.correct_answer_text && String(q.correct_answer_text).trim());
     const options = Array.isArray(q?.options) ? q.options : [];
+    if (type === 'true_false') return options.length >= 2;
     return options.length > 0 && options.some((o) => !!o.is_correct);
 }
 

@@ -1,4 +1,5 @@
 import json
+from itertools import product
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -57,6 +58,44 @@ class RAGServiceTests(SimpleTestCase):
                 self.assertIn('Tin học', prompt)
         self.chunks.filter.assert_called_with(document__classroom_id='class-1')
         self.query.filter.assert_called_with(document_id=7)
+
+    @patch('classes.models.Class.objects')
+    def test_true_false_generation_preserves_every_answer_pattern(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = []
+        for answers in product((False, True), repeat=4):
+            with self.subTest(answers=answers):
+                explanation = '\n'.join(
+                    f'{label}) {"Đúng" if answer else "Sai"}: Lời giải cho ý {label}.'
+                    for label, answer in zip('abcd', answers)
+                )
+                draft = {
+                    'question_type': 'true_false',
+                    'text': 'Có các nhận định về hệ thống mạng như sau:',
+                    'context': 'Một đơn vị đang triển khai hệ thống mạng.',
+                    'options': [
+                        {'text': f'Nhận định {label}', 'is_correct': answer}
+                        for label, answer in zip('abcd', answers)
+                    ],
+                    'correct_option': 'A',
+                    'explanation': explanation,
+                }
+                self.ai.generate_content.return_value.text = json.dumps([draft])
+                result = AIGeneratorService.generate_from_rag(
+                    'Mạng máy tính', 1, 'medium', 'class-1', 'true_false',
+                )
+                self.assertEqual(len(result), 1)
+                self.assertEqual(tuple(o['is_correct'] for o in result[0]['options']), answers)
+                self.assertEqual(result[0]['explanation'], explanation)
+
+    def test_multiple_choice_still_uses_answer_key(self):
+        result = AIGeneratorService._normalize_questions([{
+            'question_type': 'multiple_choice',
+            'text': 'Chọn phương án đúng.',
+            'options': [{'text': f'Phương án {label}'} for label in 'ABCD'],
+            'correct_option': 'C',
+        }])
+        self.assertEqual([o['is_correct'] for o in result[0]['options']], [False, False, True, False])
 
     @patch('classes.models.Class.objects')
     def test_generation_keeps_retrieved_source_and_requires_relevance_check(self, classrooms):

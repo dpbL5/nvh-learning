@@ -52,7 +52,7 @@ QUY TẮC CẤU TRÚC 3 PHẦN (MÔ HÌNH HỆ THỐNG):
 
 2. true_false (PHẦN II - Trắc nghiệm Đúng/Sai):
    - Có 1 đoạn ngữ cảnh (context) và 4 phát biểu độc lập (a, b, c, d). Thí sinh chọn Đúng hoặc Sai cho mỗi ý.
-   - PHẢI TỒN TẠI ÍT NHẤT 1 phát biểu đúng và ít nhất 1 phát biểu sai. KHÔNG ĐƯỢC tất cả đều đúng hoặc tất cả đều sai.
+   - Giữ nguyên đáp án từng ý theo SOURCE; không tự đổi đáp án để ép số lượng ý Đúng/Sai, kể cả khi cả bốn ý cùng đúng hoặc cùng sai.
    - SOURCE: "Câu 2: [Ngữ cảnh/Hình ảnh] ... a) ... b) ... c) ... d) ..."
    - QUY TẮC MAPPING 3 PHẦN:
        1. `question_text`: Vấn đề chính/Tiêu đề câu hỏi (Ví dụ: "Xét tính dư thừa dữ liệu").
@@ -145,28 +145,28 @@ CẤU TRÚC CHI TIẾT (TUÂN THỦ TUYỆT ĐỐI):
    - Phân bố vị trí đáp án đúng cân đối trong số câu MCQ được yêu cầu, tránh chuỗi dễ đoán; khi hoán đổi phải cập nhật lời giải.
 
 2. true_false (Trắc nghiệm Đúng/Sai):
+   - SOẠN TỪ CÁCH GIẢI: chọn kiến thức cần kiểm tra → dựng tình huống và bốn nhận định → giải thử độc lập từng ý → bổ sung điều kiện còn thiếu → chốt đáp án và lời giải. Không chọn trước mẫu Đ/S rồi bẻ nội dung cho khớp.
+   - Khi giải thử: (1) tách dữ kiện thực tế, yêu cầu và giả thiết riêng của từng ý; (2) xác định kiến thức đã học cần dùng; (3) đối chiếu nhận định với dữ kiện và kiến thức; (4) kiểm tra điều kiện có thể làm đổi kết luận. Dùng kết quả để sửa câu hỏi trước khi xuất, không đưa bản nháp vào JSON.
    - `question_text`: Nội dung câu hỏi / Tiêu đề (ngắn gọn, ví dụ: "Về sự ăn mòn kim loại").
    - `context`: BẮT BUỘC xác định một thực thể cụ thể (cá nhân, tổ chức hoặc hệ thống) đang thực hiện một hoạt động để giải quyết vấn đề thực tiễn. Tường thuật liền mạch vấn đề/mục tiêu, dữ kiện/ràng buộc và hoạt động/phương án mà thực thể thực hiện hoặc dự kiến thực hiện; không chỉ giới thiệu lĩnh vực rồi hỏi lý thuyết. Tình huống có thể giả định hợp lí ngoài RAG; khoảng 5–10 dòng hoặc ít hơn, liên quan đến {topic}, không nói hộ đáp án.
    - Bối cảnh có thể là một nhiệm vụ cụ thể kèm đoạn mã, biểu mẫu, hồ sơ dữ liệu hoặc cấu hình để phân tích. Những dữ kiện này là đối tượng của bài tập, không phải lời giảng hay đáp án; không thêm chuyện kể nếu không giúp xác định yêu cầu và điều kiện.
    - Bối cảnh CHỈ cung cấp dữ kiện tình huống: đối tượng, số liệu, trạng thái, cấu hình, hành động, quan sát hoặc yêu cầu thực tế. KHÔNG cung cấp định nghĩa, công thức, quy tắc, chức năng, quan hệ nguyên nhân–kết quả hay cách giải mà học sinh đang cần nhớ lại để trả lời. Kiến thức đó chỉ được trình bày trong `explanation`.
    - `text`: Câu chuyển tiếp gắn với hoạt động thực tế đang cần giải quyết, như "Khi xây dựng hệ thống hỗ trợ bảo hành nói trên, có một số nhận định như sau:", "Có một số nhận xét về phương án xử lí của đơn vị như sau:" hoặc "Có một số ý kiến về đoạn mã dùng cho chức năng trên như sau:". Không dựng thêm giáo viên/nhóm học sinh thảo luận để dẫn vào các ý hỏi; không ghi nhãn "Tình huống", không dùng "Hãy xác định Đúng hay Sai".
-   - ĐÚNG 4 phát biểu trong `options`, cùng thuộc một câu hỏi. Mỗi ý chỉ có MỘT kết luận trọng tâm để đánh giá, không ghép hai kết luận độc lập bằng "và/đồng thời" khiến một nửa đúng, một nửa sai. CẢ BỐN ý, kể cả ý Nhận biết, phải phụ thuộc vào dữ kiện cụ thể trong `context`; bối cảnh không được chỉ là lời dẫn trang trí.
+   - ĐÚNG 4 phát biểu trong `options`, cùng thuộc một câu hỏi. Mỗi ý chỉ có MỘT kết luận trọng tâm để đánh giá, không ghép hai kết luận độc lập bằng "và/đồng thời" khiến một nửa đúng, một nửa sai. Cả bốn ý phải xét đối tượng, hoạt động hoặc phương án cụ thể của tình huống.
    - Mỗi nhận định phải nêu một lựa chọn, thao tác, cách dùng dữ liệu hoặc kết quả cụ thể trong hoạt động của thực thể: dùng trường nào làm đầu vào/nhãn, xử lí theo phương án nào, kết quả đáp ứng yêu cầu nào... Chỉ dùng dạng phù hợp với {topic}. Không viết các câu chung chung như "Hệ thống giúp nâng cao hiệu quả", "Cần bảo đảm dữ liệu chính xác" hoặc chỉ đổi tên thực thể vào một nhận định áp dụng được cho mọi trường hợp.
    - Khi soạn từng ý, xác định dữ kiện quyết định trong bối cảnh và kiến thức cần dùng để kết luận. Không hỏi định nghĩa/chân lí chung, không chỉ thêm tên nhân vật hoặc cụm "trong tình huống trên" vào một phát biểu lý thuyết. Ý Nhận biết phải nhận diện đối tượng/đặc điểm qua dữ kiện, không chép lại nguyên văn bối cảnh.
-   - KIỂM TRA CHE BỐI CẢNH cho từng ý: chỉ đọc phát biểu và dùng kiến thức môn học thì chưa đủ cơ sở kết luận Đúng/Sai. Đặt dữ kiện quyết định và mô tả phương án đang xét trong `context`; không chép lại toàn bộ chúng vào từng ý khiến học sinh không cần đọc bối cảnh. Nếu vẫn trả lời chắc chắn được thì viết lại. KIỂM TRA ĐỔI DỮ KIỆN: một thay đổi hợp lí của dữ kiện quyết định phải có thể làm đảo đáp án; nếu không có thì ý hỏi chưa gắn bối cảnh.
+   - Ý Nhận biết/Thông hiểu được nhận diện thành phần hoặc giải thích vai trò của đối tượng thực sự xuất hiện trong bối cảnh (ví dụ giao thức trong URL, vai trò tên miền). Không bắt buộc thay dữ kiện phải đảo đáp án của kiến thức nền. Ý Vận dụng phải dùng dữ kiện/ràng buộc cụ thể để đánh giá kết quả, thay đổi hoặc giải pháp; nếu bỏ bối cảnh mà vẫn giải được ý Vận dụng thì viết lại.
    - Bối cảnh phải cung cấp đủ dữ kiện tình huống để KẾT HỢP VỚI KIẾN THỨC ĐÃ HỌC mà kết luận rõ ràng cho cả bốn ý; không lấy việc "không được đề cập" làm căn cứ đánh dấu Sai. Các ý khai thác các khía cạnh khác nhau của tình huống, không lặp một suy luận bốn lần.
-   - Nêu rõ điều kiện làm thay đổi đáp án (thời điểm, dữ liệu được phép dùng, quyền truy cập, đầu vào/đầu ra, cấu hình...) ngay trong bối cảnh hoặc ý hỏi. Tránh phủ định kép và từ đánh giá không có tiêu chí như "tốt hơn", "hiệu quả", "thường", "có thể"; khi cần dùng phải xác định rõ phạm vi hoặc tiêu chí để kết luận Đúng/Sai, không hỏi điều chỉ đúng trong một số cách hiểu.
+   - Nêu rõ điều kiện làm thay đổi đáp án (thời điểm, dữ liệu được phép dùng, quyền truy cập, đầu vào/đầu ra, cấu hình...) ngay trong bối cảnh hoặc ý hỏi. Ví dụ máy chủ đổi IP thì phải làm rõ DNS đã cập nhật; cần Wi-Fi từ mạng có dây thì xét chức năng Access Point, không khẳng định phải mua thiết bị riêng nếu bộ định tuyến đã tích hợp chức năng đó. Không chỉ thêm điều kiện vào lời giải để cứu một nhận định mơ hồ. Tránh phủ định kép và từ đánh giá không có tiêu chí.
    - Viết ý Sai từ một nhầm lẫn kiến thức hoặc phương án xử lí sai có cơ sở trong tình huống. Không làm sai bằng chi tiết vô lí, chơi chữ hoặc chèn "luôn luôn/duy nhất" để lộ đáp án; không tạo độ khó bằng thuật ngữ ngoài bài hay câu văn rối.
-   - KIỂM TRA NHỚ LẠI KIẾN THỨC: với từng ý, xác định kiến thức đã học nào học sinh phải tự nhớ lại mà bối cảnh không cung cấp. Nếu chỉ cần đọc, chép hoặc đối chiếu câu chữ trong bối cảnh là trả lời được, phải bỏ phần lý thuyết làm lộ đáp án hoặc viết lại ý hỏi. Mỗi ý bắt buộc cần cả kiến thức đã học lẫn dữ kiện bối cảnh.
-   - `explanation` của TỪNG ý phải nêu dữ kiện cụ thể đã dùng, kiến thức/quan hệ áp dụng và kết luận Đúng/Sai; với ý Sai, chỉ đúng chỗ sai và nêu cách sửa. Không chỉ nhắc lại lý thuyết chung hoặc dùng chính phát biểu làm bằng chứng.
+   - KIỂM TRA NHỚ LẠI KIẾN THỨC: với từng ý, xác định kiến thức đã học nào học sinh phải tự nhớ lại mà bối cảnh không cung cấp. Nếu chỉ cần đọc, chép hoặc đối chiếu câu chữ trong bối cảnh là trả lời được, phải bỏ phần lý thuyết làm lộ đáp án hoặc viết lại ý hỏi.
+   - `explanation` trình bày lần lượt a), b), c), d), mỗi ý ghi mức nhận thức, Đúng/Sai và giải thích ngắn theo mạch: dữ kiện/đối tượng đang xét → kiến thức áp dụng → kết luận; với ý Sai, chỉ đúng chỗ sai và nêu cách sửa. Kết luận phải khớp `is_correct` của ý tương ứng. Không chỉ nhắc lại lý thuyết chung hoặc dùng chính phát biểu làm bằng chứng.
    - TỰ PHẢN BIỆN trước khi xuất: tìm một cách hiểu hợp lí hoặc điều kiện chưa nêu có thể khiến đáp án ngược lại cũng bảo vệ được. Nếu có, bổ sung dữ kiện cần thiết hoặc viết lại ý; không yêu cầu người làm tự đoán ý tác giả. Chỉ xuất câu hỏi, đáp án và lời giải đã rà soát, không xuất bản nháp/quá trình soạn.
    - Mỗi câu đủ Nhận biết, Thông hiểu, Vận dụng; ưu tiên thứ tự NB, TH, VD, VD. `difficulty` vẫn giữ giá trị được yêu cầu; ghi mức nhận thức và giải thích Đúng/Sai từng ý trong `explanation`.
    - Bốn ý khai thác các khía cạnh của cùng dữ kiện: nhận diện thành phần, giải thích hoạt động/quan hệ, xét một đầu vào hoặc phương án cụ thể, rồi đánh giá một thay đổi/giải pháp. Mỗi ý có thể chấm độc lập, không lấy kết luận của ý trước làm giả thiết cho ý sau. Có thể thêm điều kiện giả định ngay trong một ý; điều kiện đó chỉ áp dụng cho ý ấy.
    - Các ý Vận dụng phải đánh giá một phương án, dự đoán kết quả hoặc đề xuất thay đổi đáp ứng nhu cầu thực tế đã nêu, có xét dữ kiện/ràng buộc của đơn vị; không dừng ở nhắc lại định nghĩa hoặc phát biểu lý thuyết độc lập với công việc cần giải quyết.
    - Nhận biết: nhớ khái niệm/đặc điểm để nhận diện đối tượng trong tình huống. Thông hiểu: dùng kiến thức đã học để giải thích hoặc suy luận từ dữ kiện. Vận dụng: kết hợp dữ kiện với kiến thức đã học để đánh giá cách xử lí, dự đoán kết quả hoặc lựa chọn giải pháp; không chỉ đổi nhãn mức nhận thức cho một ý hỏi đọc hiểu.
-   - PHẢI TỒN TẠI ÍT NHẤT 1 phát biểu đúng (is_correct: true) và ít nhất 1 phát biểu sai.
-   - TUYỆT ĐỐI KHÔNG ĐƯỢC: tất cả đều đúng hoặc tất cả đều sai.
-   - Đa dạng cơ cấu 2Đ–2S, 1Đ–3S, 3Đ–1S và vị trí Đ/S trong bộ câu hỏi. Ý sai phải sai về kiến thức hoặc dữ kiện, không do diễn đạt mơ hồ.
+   - Đánh giá từng ý độc lập; không suy ra đáp án từ ý khác và không ép số lượng/vị trí Đúng/Sai. Chấp nhận cả bốn ý cùng đúng hoặc cùng sai nếu có căn cứ. Ý sai phải sai về kiến thức hoặc dữ kiện, không do diễn đạt mơ hồ.
 
 3. short_answer (Trắc nghiệm trả lời ngắn):
    - Đáp án là một số cụ thể trong `correct_answer_text`.
@@ -796,7 +796,7 @@ class AIGeneratorService:
                 # Suy diễn đáp án đúng nếu model trả về dạng key riêng.
                 q_correct = q.get('correct_option') or q.get('answer_key') or q.get('correct_answer')
                 has_correct = any(bool(o.get('is_correct')) for o in item['options'])
-                if q_correct and item['options'] and not has_correct:
+                if q_type == 'multiple_choice' and q_correct and item['options'] and not has_correct:
                     key = str(q_correct).strip()
                     idx_from_key = None
                     if len(key) == 1 and key.upper() in ('A', 'B', 'C', 'D'):
@@ -842,17 +842,6 @@ class AIGeneratorService:
                                 o['is_correct'] = False
                             else:
                                 found_first = True
-
-            elif q_type == 'true_false' and item['options']:
-                correct_count = sum(1 for o in item['options'] if o.get('is_correct'))
-                if correct_count == 0:
-                    # Tất cả đều sai: đánh dấu câu đầu tiên là đúng
-                    print(f"[normalize] WARNING: TF question {idx} has no correct statement. Marking first as correct.")
-                    item['options'][0]['is_correct'] = True
-                elif correct_count == len(item['options']):
-                    # Tất cả đều đúng: đánh dấu câu cuối là sai
-                    print(f"[normalize] WARNING: TF question {idx} has ALL correct. Marking last as incorrect.")
-                    item['options'][-1]['is_correct'] = False
 
             normalized.append(item)
 

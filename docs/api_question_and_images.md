@@ -90,6 +90,7 @@ Do đã gộp vào Payload chính của Question, các API rời rạc này ch�
 - **Mục đích:** Sinh câu hỏi ưu tiên RAG (Thư viện tri thức). Khi tài liệu rỗng, không liên quan hoặc chưa đủ thông tin, AI được bổ sung kiến thức nền đúng môn/chủ đề và trình độ THPT.
 - **Bối cảnh:** AI được tự xây dựng tình huống ngoài RAG từ kiến thức nền, kể cả khi RAG đủ thông tin. Bối cảnh có thể thuộc nhiều lĩnh vực đời sống, nhưng kiến thức cần kiểm tra vẫn đúng chủ đề/YCCĐ và không đòi thêm chuyên môn ngoài bài; dữ kiện giả định được ghi rõ, không gán cho tài liệu.
 - **Chất lượng:** Câu dẫn ngắn, phương án nhiễu từ hiểu sai hợp lí; Đúng/Sai có đúng 4 ý gắn với bối cảnh. Số lượng, loại câu và độ khó vẫn theo request, không cố định theo tài liệu hướng dẫn mẫu.
+- **Đúng/Sai:** Prompt yêu cầu giải thử từng ý theo dữ kiện → kiến thức → kết luận, sửa điều kiện mơ hồ trước khi xuất. Ý Nhận biết/Thông hiểu xét đối tượng trong tình huống; ý Vận dụng phải dùng dữ kiện/ràng buộc cụ thể. Không ép số lượng ý Đúng/Sai và không tự đổi đáp án khi chuẩn hóa, kể cả bốn ý cùng đúng hoặc cùng sai.
 - **Lời giải:** Trường `explanation` gồm căn cứ đáp án và tên tài liệu sử dụng; phần ngoài RAG được ghi rõ “Kiến thức nền bổ sung ngoài tài liệu lớp học”. Trường này được giữ khi chuẩn hóa và lưu bulk.
 - **Giới hạn:** Bổ sung bằng kiến thức sẵn có của mô hình, chưa có tìm kiếm web trực tiếp; không bịa nội dung riêng của lớp, URL hoặc thông tin cập nhật. Nếu không đủ cơ sở tạo câu hỏi chính xác, trả về danh sách rỗng.
 

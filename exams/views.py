@@ -174,16 +174,18 @@ class QuestionListCreateView(generics.ListCreateAPIView):
         status_filter = self.request.query_params.get('status')
         if status_filter == 'needs_review':
             # Logic similar to frontend isNeedsReview:
-            # multiple_choice/true_false: no options OR no correct option
+            # multiple_choice: no correct option; true_false: no statements
             # short_answer: no correct_answer_text
-            q_mc_tf = Q(question_type__in=['multiple_choice', 'true_false'])
+            q_mc = Q(question_type='multiple_choice')
+            q_tf = Q(question_type='true_false')
             q_sa = Q(question_type='short_answer')
             
             qs = qs.annotate(
                 correct_options_count=Count('options', filter=Q(options__is_correct=True)),
                 total_options_count=Count('options')
             ).filter(
-                (q_mc_tf & (Q(total_options_count=0) | Q(correct_options_count=0))) |
+                (q_mc & Q(correct_options_count=0)) |
+                (q_tf & Q(total_options_count=0)) |
                 (q_sa & (Q(correct_answer_text__isnull=True) | Q(correct_answer_text='')))
             )
             

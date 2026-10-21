@@ -99,6 +99,31 @@ class ExamsApiTests(APITestCase):
 		res = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
 		self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
+	def test_review_filter_accepts_true_false_with_all_false_statements(self):
+		questions = {}
+		for question_type in ('true_false', 'multiple_choice'):
+			question = Question.objects.create(
+				question_type=question_type, text='Câu hỏi cần xét',
+				subject=self.subject, created_by=self.teacher,
+			)
+			Option.objects.bulk_create([
+				Option(question=question, text=f'Ý {label}', is_correct=False)
+				for label in 'abcd'
+			])
+			questions[question_type] = question
+		empty_question = Question.objects.create(
+			question_type='true_false', text='Câu hỏi chưa có nhận định',
+			subject=self.subject, created_by=self.teacher,
+		)
+		self.client.force_authenticate(user=self.teacher)
+		res = self.client.get('/api/exams/questions/', {'status': 'needs_review'})
+		self.assertEqual(res.status_code, status.HTTP_200_OK)
+		rows = res.data['results'] if isinstance(res.data, dict) else res.data
+		question_ids = {row['id'] for row in rows}
+		self.assertNotIn(questions['true_false'].id, question_ids)
+		self.assertIn(questions['multiple_choice'].id, question_ids)
+		self.assertIn(empty_question.id, question_ids)
+
 	def test_student_submit_quiz_calculates_score(self):
 		self._auth('student_exam', 'StudentPass123')
 
