@@ -12,10 +12,12 @@ class EmailOrUsernameBackend(ModelBackend):
             return None
         try:
             if '@' in login_value:
-                user = UserModel.objects.get(email__iexact=login_value)
+                user = UserModel.objects.filter(email__iexact=login_value).order_by('id').first()
             else:
-                user = UserModel.objects.get(username__iexact=login_value)
+                user = UserModel.objects.filter(username__iexact=login_value).order_by('id').first()
         except UserModel.DoesNotExist:
+            return None
+        if user is None:
             return None
         if user.check_password(password) and self.user_can_authenticate(user):
             return user

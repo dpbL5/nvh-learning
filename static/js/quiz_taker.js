@@ -1,10 +1,11 @@
-const token = localStorage.getItem('access');
 let attemptId = null, quizQuestions = [], endTimeTime = null, timerInterval = null;
 let currentAnswers = {};
-if (!token) window.location.href = '/login/';
+if (!localStorage.getItem('auth_hint')) window.location.href = '/login/';
 
-function authHeaders() { return {'Content-Type':'application/json','Authorization':'Bearer '+token}; }
-function escapeHtml(s) { return (s||'').toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function authHeaders() {
+    return { 'Content-Type': 'application/json' };
+}
+function escapeHtml(s) { return (s ?? '').toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
 // Rendering helpers removed. Using QuestionRenderer.
 
 async function init() {
@@ -477,7 +478,7 @@ function renderReview(questions, answers) {
         var stemHtml = QuestionRenderer.renderStem(q);
         var explanationHtml = '';
         if (q.explanation) {
-            explanationHtml = '<div class="mt-2 p-2 bg-light rounded small text-muted"><strong>Giải thích:</strong> ' + q.explanation + '</div>';
+            explanationHtml = '<div class="mt-2 p-2 bg-light rounded small text-muted"><strong>Giải thích:</strong> ' + escapeHtml(q.explanation) + '</div>';
         }
         
         var isOverallCorrect = false;

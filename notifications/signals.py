@@ -1,57 +1,81 @@
 """
-Signal: khi Quiz được công khai lần đầu (is_published False → True),
-tự động tạo Notification cho tất cả học sinh trong lớp đó.
+Signals for in-app notifications.
+- Quiz published: notify enrolled students when it is actually visible.
+- Student joins a class: notify them about already-visible published quizzes.
+- Quiz deleted: remove its notifications.
 """
-from django.db.models.signals import post_save
+from django.db.models import Q
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
+from django.utils import timezone
+
+
+def _quiz_message(quiz):
+    actor = quiz.created_by
+    actor_name = (actor.full_name or actor.username) if actor else 'Giáo viên'
+    return f'{actor_name} vừa công bố đề thi: "{quiz.title}"'
+
+
+def _visible_quizzes(classroom_id):
+    from exams.models import Quiz
+
+    now = timezone.now()
+    return (
+        Quiz.objects
+        .filter(
+            classroom_id=classroom_id,
+            is_published=True,
+            assigned_to__isnull=True,
+        )
+        .filter(Q(publish_at__isnull=True) | Q(publish_at__lte=now))
+        .select_related('created_by')
+    )
+
+
+def _notify_student(student_id, quiz):
+    from .models import Notification
+
+    Notification.objects.get_or_create(
+        recipient_id=student_id,
+        verb=Notification.VERB_PUBLISHED_QUIZ,
+        target_id=quiz.id,
+        defaults={
+            'actor': quiz.created_by,
+            'message': _quiz_message(quiz),
+        },
+    )
 
 
 @receiver(post_save, sender='exams.Quiz')
 def notify_students_on_quiz_publish(sender, instance, created, **kwargs):
-    """
-    - created=True  : quiz mới tạo ra, kiểm tra nếu ngay lập tức published
-    - created=False : quiz vừa được update, kiểm tra nếu vừa chuyển sang published
-    """
-    from exams.models import Quiz
+    quiz = instance
+    if not quiz.is_published or quiz.assigned_to_id is not None:
+        return
+    if quiz.publish_at and quiz.publish_at > timezone.now():
+        return
+
     from classes.models import ClassStudent
+
+    student_ids = ClassStudent.objects.filter(
+        classroom_id=quiz.classroom_id
+    ).values_list('student_id', flat=True)
+    for student_id in student_ids:
+        _notify_student(student_id, quiz)
+
+
+@receiver(post_save, sender='classes.ClassStudent')
+def notify_new_student_on_visible_quizzes(sender, instance, created, **kwargs):
+    if not created:
+        return
+    for quiz in _visible_quizzes(instance.classroom_id):
+        _notify_student(instance.student_id, quiz)
+
+
+@receiver(post_delete, sender='exams.Quiz')
+def remove_quiz_notifications(sender, instance, **kwargs):
     from .models import Notification
 
-    quiz = instance
-
-    if not quiz.is_published:
-        return
-
-    # Bỏ qua bài thi cá nhân (VD: Phục thù)
-    if quiz.assigned_to is not None:
-        return
-
-    # Kiểm tra xem đã có notification cho quiz này chưa để tránh duplicate
-    if Notification.objects.filter(
+    Notification.objects.filter(
         verb=Notification.VERB_PUBLISHED_QUIZ,
-        target_id=quiz.id,
-    ).exists():
-        return
-
-    # Lấy danh sách học sinh trong lớp
-    student_ids = ClassStudent.objects.filter(
-        classroom=quiz.classroom
-    ).values_list('student_id', flat=True)
-
-    if not student_ids:
-        return
-
-    actor = quiz.created_by
-    actor_name = actor.full_name or actor.username if actor else 'Giáo viên'
-    message = f'{actor_name} vừa công bố đề thi: "{quiz.title}"'
-
-    notifications = [
-        Notification(
-            recipient_id=sid,
-            actor=actor,
-            verb=Notification.VERB_PUBLISHED_QUIZ,
-            message=message,
-            target_id=quiz.id,
-        )
-        for sid in student_ids
-    ]
-    Notification.objects.bulk_create(notifications, ignore_conflicts=True)
+        target_id=instance.id,
+    ).delete()

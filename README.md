@@ -69,6 +69,14 @@ OPENAI_API_KEY=your-openai-api-key # API key lấy từ OpenAI Dashboard
 OPENAI_MODEL_NAME=gpt-4o-mini
 OPENAI_EMBED_MODEL=text-embedding-3-small
 
+# Tùy chọn vận hành
+# CACHE_BACKEND=db                 # Mặc định locmem; dùng db cần bảng django_cache_table
+# CRON_SECRET=your-cron-secret     # Bảo vệ endpoint cron thông báo trên Vercel
+# AI_INSIGHT_COOLDOWN_DAYS=5       # Số ngày giữa 2 lần tạo báo cáo AI Insight
+CLOUDINARY_CLOUD_NAME=your-cloud
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+
 # Nếu hệ thống sử dụng NeonDB (Môi trường Staging/Prod) hoặc cloud database khác:
 # DATABASE_URL='postgresql://user:pass@host/db?sslmode=require'
 ```

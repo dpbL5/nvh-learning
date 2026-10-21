@@ -50,7 +50,7 @@ class AICoreApiTests(APITestCase):
 		self.document = Document.objects.create(
 			classroom=self.classroom,
 			title='Bai giang 1',
-			file_path='bai_giang_1.docx',
+			file_url='https://res.cloudinary.com/demo/raw/upload/bai_giang_1.docx',
 		)
 
 	def _auth(self, username, password):

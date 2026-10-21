@@ -3,6 +3,15 @@
  * Handles creation and editing of questions across Quiz Builder, Question Bank, and AI Drafts.
  */
 
+function escapeHtml(value) {
+    return (value ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 const QuestionEditor = {
     config: {
         context: 'bank', // 'bank' or 'quiz'
@@ -449,7 +458,7 @@ const QuestionEditor = {
     },
 
     authHeaders(isMultipart = false) {
-        const h = { 'Authorization': 'Bearer ' + localStorage.getItem('access') };
+        const h = {};
         if (!isMultipart) h['Content-Type'] = 'application/json';
         return h;
     },
@@ -497,7 +506,7 @@ const QuestionEditor = {
                     this.updatePreview();
                 }
             } else {
-                statusEl.innerHTML = `<span class="text-danger">Lỗi: ${data.error || 'Thất bại'}</span>`;
+                statusEl.innerHTML = `<span class="text-danger">Lỗi: ${escapeHtml(data.error || 'Thất bại')}</span>`;
             }
         } catch (e) {
             statusEl.innerHTML = '<span class="text-danger">Lỗi kết nối.</span>';
@@ -529,14 +538,15 @@ const QuestionEditor = {
         listEl.innerHTML = this.state.currentImages.map(img => {
             const url = img.image_url || img.image?.image_url || '';
             const sha = img.image?.sha256 || '';
-            const safeSha = sha ? sha.slice(0, 8) + '...' : 'N/A';
+            const safeSha = /^[a-fA-F0-9]{32,64}$/.test(sha) ? sha : '';
+            const shortSha = safeSha ? safeSha.slice(0, 8) + '...' : 'N/A';
             return `
                 <div class="card shadow-sm border" style="width: 120px; flex-shrink: 0;">
-                    <img src="${url}" class="card-img-top" style="height: 80px; object-fit: cover; cursor: pointer;" onclick="QuestionEditor.copyImgTag('${sha}')" title="Click để chèn vào nội dung">
+                    <img src="${escapeHtml(url)}" class="card-img-top" style="height: 80px; object-fit: cover; cursor: pointer;" onclick="QuestionEditor.copyImgTag('${safeSha}')" title="Click để chèn vào nội dung">
                     <div class="card-body p-1 text-center">
-                        <div class="text-muted" style="font-size: 9px; overflow: hidden; white-space: nowrap;">${safeSha}</div>
+                        <div class="text-muted" style="font-size: 9px; overflow: hidden; white-space: nowrap;">${shortSha}</div>
                         <div class="d-flex justify-content-center gap-1">
-                            <button type="button" class="btn btn-xs btn-link p-0" onclick="QuestionEditor.copyImgTag('${sha}')" title="Chép mã chèn">
+                            <button type="button" class="btn btn-xs btn-link p-0" onclick="QuestionEditor.copyImgTag('${safeSha}')" title="Chép mã chèn">
                                 <i class="bi bi-clipboard" style="font-size: 12px;"></i>
                             </button>
                             ${(!this.state.isDraft && img.id) ? `
@@ -603,7 +613,7 @@ const QuestionEditor = {
         const previewHtml = QuestionRenderer.renderStem(dummyQ);
         
         const displayTitle = tfQText || text; // Use T/F question text or general text for title
-        previewTitle.innerHTML = `<span class="badge bg-primary me-2">Xem trước</span> <strong>${displayTitle.substring(0, 50)}${displayTitle.length > 50 ? '...' : ''}</strong>`;
+        previewTitle.innerHTML = `<span class="badge bg-primary me-2">Xem trước</span> <strong>${escapeHtml(displayTitle.substring(0, 50))}${displayTitle.length > 50 ? '...' : ''}</strong>`;
         previewContent.innerHTML = previewHtml;
     },
 

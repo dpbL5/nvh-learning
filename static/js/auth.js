@@ -100,9 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const data = await res.json();
                 if (res.ok && data.access) {
-                    localStorage.setItem('access', data.access);
-                    localStorage.setItem('refresh', data.refresh);
+                    localStorage.removeItem('access');
+                    localStorage.removeItem('refresh');
                     localStorage.removeItem('user_profile');
+                    localStorage.setItem('auth_hint', '1');
                     sessionStorage.setItem('globalAlert', JSON.stringify({msg: '✅ Đã đăng nhập thành công!', type: 'success'}));
                     window.location.href = '/dashboard/';
                 } else {

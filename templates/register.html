@@ -3,8 +3,11 @@
 {% block title %}Đăng ký – Nguyễn Văn Huyên Learning{% endblock %}
 {% block head %}
 <script>
-    if (localStorage.getItem('access')) {
+    if (localStorage.getItem('auth_hint')) {
         window.location.href = '/dashboard/';
+    } else {
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
     }
 </script>
 {% endblock %}

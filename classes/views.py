@@ -1,9 +1,7 @@
 from rest_framework import generics, permissions, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from django.views.decorators.vary import vary_on_headers
 
 from .models import Class, ClassStudent, Subject
 from .serializers import ClassSerializer, SubjectSerializer
@@ -13,6 +11,22 @@ from accounts.models import User
 def _is_admin(user):
     """Check via role model, not is_staff."""
     return getattr(user.role, 'name', None) == 'admin' or user.is_superuser
+
+
+def _class_queryset_for_user(user):
+    qs = (
+        Class.objects.all()
+        .select_related('subject', 'teacher')
+        .prefetch_related('class_students', 'quizzes')
+    )
+    role_name = getattr(user.role, 'name', None)
+    if _is_admin(user):
+        return qs
+    if role_name == 'teacher':
+        return qs.filter(teacher=user)
+    if role_name == 'student':
+        return qs.filter(class_students__student=user).distinct()
+    return Class.objects.none()
 
 
 class SubjectListCreateView(generics.ListCreateAPIView):
@@ -46,27 +60,17 @@ class SubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().destroy(request, *args, **kwargs)
 
 
-@method_decorator(cache_page(60 * 15), name='dispatch')
-@method_decorator(vary_on_headers('Authorization'), name='dispatch')
 class ClassListCreateView(generics.ListCreateAPIView):
     serializer_class = ClassSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        user = self.request.user
-        role_name = getattr(user.role, 'name', None)
-        if _is_admin(user):
-            return Class.objects.all().select_related('subject', 'teacher')
-        elif role_name == 'teacher':
-            return Class.objects.filter(teacher=user).select_related('subject', 'teacher')
-        elif role_name == 'student':
-            return Class.objects.filter(class_students__student=user).select_related('subject', 'teacher')
-        return Class.objects.none()
+        return _class_queryset_for_user(self.request.user)
 
     def perform_create(self, serializer):
         # Only teachers can create classes
         if not (getattr(self.request.user.role, 'name', None) in ('teacher', 'admin') or self.request.user.is_superuser):
-            raise permissions.exceptions.PermissionDenied('Chỉ giáo viên mới có thể tạo lớp.')
+            raise PermissionDenied('Chỉ giáo viên mới có thể tạo lớp.')
         # In Class model, teacher is assigned here.
         serializer.save(teacher=self.request.user)
 
@@ -75,7 +79,20 @@ class ClassDetailUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     """Retrieve, update or delete a specific class."""
     serializer_class = ClassSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset = Class.objects.all().select_related('subject', 'teacher')
+
+    def get_queryset(self):
+        return Class.objects.all().select_related('subject', 'teacher')
+
+    def retrieve(self, request, *args, **kwargs):
+        classroom = self.get_object()
+        role_name = getattr(request.user.role, 'name', None)
+        if (
+            _is_admin(request.user)
+            or (role_name == 'teacher' and classroom.teacher_id == request.user.id)
+            or (role_name == 'student' and ClassStudent.objects.filter(classroom=classroom, student=request.user).exists())
+        ):
+            return super().retrieve(request, *args, **kwargs)
+        return Response({'detail': 'Bạn không có quyền xem lớp này.'}, status=status.HTTP_403_FORBIDDEN)
 
     def update(self, request, *args, **kwargs):
         classroom = self.get_object()
@@ -135,13 +152,14 @@ class JoinClassView(APIView):
         code = request.data.get('invite_code')
         if not code:
             return Response({'detail': 'Vui lòng cung cấp mã lớp.'}, status=status.HTTP_400_BAD_REQUEST)
+        code = str(code).strip().upper()
         try:
             classroom = Class.objects.get(invite_code=code)
         except Class.DoesNotExist:
             return Response({'detail': 'Mã lớp không hợp lệ.'}, status=status.HTTP_404_NOT_FOUND)
-        if ClassStudent.objects.filter(classroom=classroom, student=request.user).exists():
+        _, created = ClassStudent.objects.get_or_create(classroom=classroom, student=request.user)
+        if not created:
             return Response({'detail': 'Bạn đã tham gia lớp này.'}, status=status.HTTP_400_BAD_REQUEST)
-        ClassStudent.objects.create(classroom=classroom, student=request.user)
         return Response({
             'detail': 'Tham gia lớp thành công.',
             'class_id': str(classroom.id),
@@ -169,13 +187,14 @@ class ClassStudentAddView(APIView):
             )
 
         identifier = request.data.get('identifier')
-        if not identifier:
+        if not isinstance(identifier, str) or not identifier.strip():
             return Response({'detail': 'Vui lòng cung cấp username hoặc email của học sinh.'}, status=status.HTTP_400_BAD_REQUEST)
+        identifier = identifier.strip()
 
         # Try to find user by email first, then username
-        student = User.objects.filter(email=identifier).first()
+        student = User.objects.filter(email__iexact=identifier).first()
         if not student:
-            student = User.objects.filter(username=identifier).first()
+            student = User.objects.filter(username__iexact=identifier).first()
 
         if not student:
             return Response({'detail': 'Không tìm thấy học sinh với thông tin này.'}, status=status.HTTP_404_NOT_FOUND)

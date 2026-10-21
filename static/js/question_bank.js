@@ -3,16 +3,11 @@ let subjects = [];
 let currentDrafts = { file: [], rag: [] }; // Storage cho AI Generator
 
 function authHeaders() {
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + localStorage.getItem('access')
-    };
+    return { 'Content-Type': 'application/json' };
 }
 
 function authOnlyHeaders() {
-    return {
-        'Authorization': 'Bearer ' + localStorage.getItem('access')
-    };
+    return {};
 }
 
 
@@ -272,8 +267,11 @@ function renderQuestions() {
 
     questions.forEach((q, idx) => {
         const needsReview = isNeedsReview(q);
-        const reviewBadge = needsReview 
-            ? `<span class="badge bg-danger ms-2 cursor-pointer" onclick="openQuickReview(${q.id})" title="Nhấp để cập nhật đáp án ngay"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cần Cập nhật Đáp án</span>` 
+        const canEdit = q.can_edit === true;
+        const reviewBadge = needsReview
+            ? (canEdit
+                ? `<span class="badge bg-danger ms-2 cursor-pointer" onclick="openQuickReview(${q.id})" title="Nhấp để cập nhật đáp án ngay"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cần Cập nhật Đáp án</span>`
+                : `<span class="badge bg-danger ms-2"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cần Cập nhật Đáp án</span>`)
             : '';
 
         let subName = q.subject_name || subjects.find(s => s.id === q.subject)?.name || 'N/A';
@@ -284,7 +282,7 @@ function renderQuestions() {
         const imagesPreview = questionImages.slice(0, 6).map((qi) => {
             const url = qi.image_url || qi.image?.image_url;
             if (!url) return '';
-            return `<img src="${url}" class="rounded border" style="height:44px;width:44px;object-fit:cover;" title="${escapeHtml(qi.placement || 'stem')} • ${escapeHtml(qi.source_type || '')}">`;
+            return `<img src="${escapeHtml(url)}" class="rounded border" style="height:44px;width:44px;object-fit:cover;" title="${escapeHtml(qi.placement || 'stem')} • ${escapeHtml(qi.source_type || '')}">`;
         }).join('');
 
         list.innerHTML += `
@@ -293,24 +291,25 @@ function renderQuestions() {
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="d-flex align-items-start gap-3">
-                                <div class="form-check mt-1">
+                                ${canEdit ? `<div class="form-check mt-1">
                                     <input class="form-check-input q-checkbox" type="checkbox" data-id="${q.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelectQuestion(${q.id}, this.checked)">
-                                </div>
+                                </div>` : ''}
                                 <div>
                                     ${TYPE_LBL[q.question_type || 'multiple_choice']}
                                     ${DIFF_LBL[q.difficulty || 'medium']}
-                                    <span class="badge bg-light text-muted border border-secondary border-opacity-25 ms-1">${subName}</span>
+                                    <span class="badge bg-light text-muted border border-secondary border-opacity-25 ms-1">${escapeHtml(subName)}</span>
                                     ${reviewBadge}
                                 </div>
                             </div>
                             <div class="d-flex gap-2">
+                                ${canEdit ? `
                                 <button class="btn btn-sm btn-outline-primary" onclick="editQuestion(${q.id})" title="Chỉnh sửa">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteQuestion(${q.id})" title="Xoá">
                                     <i class="bi bi-trash"></i>
-                                </button>
+                                </button>` : ''}
                             </div>
                         </div>
                         <div class="mb-2" style="margin-left: 2rem;">
@@ -329,10 +328,12 @@ function renderQuestions() {
 }
 
 function escapeHtml(unsafe) {
-    return (unsafe || '').toString()
+    return (unsafe ?? '').toString()
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 // Redundant helpers removed. Using QuestionRenderer.
@@ -413,7 +414,7 @@ function openQuickReview(qId) {
     if (type === 'short_answer') {
         html += `
             <label class="fw-bold mb-1">Đáp án đúng:</label>
-            <input type="text" id="qrText" class="form-control" placeholder="Nhập số hoặc văn bản ngắn..." value="${q.correct_answer_text||''}">
+            <input type="text" id="qrText" class="form-control" placeholder="Nhập số hoặc văn bản ngắn..." value="${escapeHtml(q.correct_answer_text || '')}">
         `;
     } else if (type === 'multiple_choice') {
         html += `<label class="fw-bold mb-2">Chọn đáp án đúng (A/B/C/D):</label>`;
@@ -562,7 +563,7 @@ async function loadRagDocuments(classId) {
         if (!res.ok) { status.textContent = 'Không thể tải tài liệu.'; return; }
         const docs = await res.json();
         if (Array.isArray(docs) && docs.length > 0) {
-            docs.forEach(d => sel.add(new Option(d.title || d.file_path, d.id)));
+            docs.forEach(d => sel.add(new Option(d.title || 'Tài liệu', d.id)));
             status.textContent = `Đã tải ${docs.length} tài liệu.`;
         } else {
             status.textContent = 'Lớp học này chưa có tài liệu nào.';

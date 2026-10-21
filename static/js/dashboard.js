@@ -1,15 +1,23 @@
+function escapeHtml(value) {
+    return (value ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const dashboardContent = document.getElementById('dashboardContent');
     if (!dashboardContent) return;
 
-    const token = localStorage.getItem('access');
-    if (!token) window.location.href = '/login/';
+    if (!localStorage.getItem('auth_hint')) window.location.href = '/login/';
     
-    function authH() { return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }; }
+    function authH() { return { 'Content-Type': 'application/json' }; }
     
     async function initDashboard() {
         try {
-            const user = await window.getCurrentUser();
+            const user = await window.getCurrentUser(true);
             if (!user) {
                 // Token không hợp lệ → cần đăng nhập lại
                 localStorage.clear();
@@ -47,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
             placeholder.innerHTML = `
                 <div class="py-5 text-center">
                     <div style="font-size:3rem;">⚠️</div>
-                    <p class="mt-3 text-danger fw-medium">${msg}</p>
+                    <p class="mt-3 text-danger fw-medium">${escapeHtml(msg)}</p>
                     <button class="btn btn-outline-primary btn-sm mt-2" onclick="window.location.reload()">
                         <i class="bi bi-arrow-clockwise me-1"></i>Tải lại trang
                     </button>
@@ -177,8 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<div class="activity-item">
                 <div class="activity-avatar" style="background:${im.bg};color:${im.c};"><i class="bi ${im.icon}"></i></div>
                 <div class="activity-content">
-                    <div class="activity-title">${act.title}</div>
-                    <div class="activity-sub">${act.detail}</div>
+                    <div class="activity-title">${escapeHtml(act.title)}</div>
+                    <div class="activity-sub">${escapeHtml(act.detail)}</div>
                     <div class="activity-time">${timeStr}</div>
                 </div>
             </div>`;
@@ -256,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isDecline = w.startsWith('Điểm sụt mạnh');
                     return `<li class="list-group-item d-flex align-items-start gap-2 py-2 border-0 border-bottom ${isDecline ? 'bg-danger-subtle' : ''}">
                         <i class="bi ${isDecline ? 'bi-graph-down-arrow text-danger fs-5' : 'bi-x-circle text-warning'} flex-shrink-0 mt-1"></i>
-                        <span class="${isDecline ? 'text-danger fw-semibold' : ''}">${w}</span>
+                        <span class="${isDecline ? 'text-danger fw-semibold' : ''}">${escapeHtml(w)}</span>
                     </li>`;
                 }).join('');
                 aiActions.style.display = 'block'; // Show AI actions if there are weaknesses
@@ -374,16 +382,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rawInsight.includes('\\n')) {
                 rawInsight = rawInsight.replace(/\\n/g, '\n');
             }
-            
-            let formattedInsight = rawInsight;
+
+            const safeInsight = escapeHtml(rawInsight);
+            let formattedInsight = safeInsight;
             if (typeof marked !== 'undefined') {
-                formattedInsight = marked.parse(rawInsight);
+                formattedInsight = marked.parse(safeInsight);
             } else {
                 // Fallback basic parse if marked is missing
-                formattedInsight = rawInsight
+                formattedInsight = safeInsight
                     .replace(/\n/g, '<br>')
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     .replace(/### (.*?)(?:<br>|\n|$)/g, '<h5>$1</h5>');
+            }
+            if (window.sanitizeMarkdownHtml) {
+                formattedInsight = window.sanitizeMarkdownHtml(formattedInsight);
             }
 
             body.innerHTML = `<div class="p-3 ai-markdown-content" style="line-height: 1.6;">${formattedInsight}</div>`;
@@ -391,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.MathJax.typesetPromise([body]).catch(err => console.warn('MathJax error:', err));
             }
         } catch (e) {
-            body.innerHTML = `<div class="alert alert-danger m-3"><i class="bi bi-exclamation-triangle-fill me-2"></i> ${e.message}</div>`;
+            body.innerHTML = `<div class="alert alert-danger m-3"><i class="bi bi-exclamation-triangle-fill me-2"></i> ${escapeHtml(e.message)}</div>`;
         }
     };
 

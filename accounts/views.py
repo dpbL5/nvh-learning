@@ -1,12 +1,19 @@
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from .models import User, Role
 from .serializers import RegisterSerializer, UserSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from .authentication import (
+    REFRESH_COOKIE,
+    clear_auth_cookies,
+    set_auth_cookies,
+)
 
 
 def _is_teacher_or_admin(user):
@@ -22,13 +29,14 @@ class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        try:
-            refresh_token = request.data["refresh"]
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response(status=status.HTTP_205_RESET_CONTENT)
-        except Exception:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        refresh_token = request.data.get('refresh') or request.COOKIES.get(REFRESH_COOKIE)
+        if refresh_token:
+            try:
+                RefreshToken(refresh_token).blacklist()
+            except Exception:
+                pass
+        response = Response(status=status.HTTP_205_RESET_CONTENT)
+        return clear_auth_cookies(response)
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -53,12 +61,42 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            set_auth_cookies(
+                response,
+                access=response.data.get('access'),
+                refresh=response.data.get('refresh'),
+            )
+        return response
+
+
+class CookieTokenRefreshView(TokenRefreshView):
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        data = request.data.copy()
+        if not data.get('refresh'):
+            data['refresh'] = request.COOKIES.get(REFRESH_COOKIE)
+        serializer = self.get_serializer(data=data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as exc:
+            raise InvalidToken(exc.args[0])
+        access = serializer.validated_data.get('access')
+        refresh = serializer.validated_data.get('refresh')
+        response = Response({'detail': 'ok'})
+        return set_auth_cookies(response, access=access, refresh=refresh)
 
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
 
 class MeView(generics.RetrieveAPIView):
@@ -104,6 +142,9 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         # Allow changing role by name
         role_name = request.data.get('role_name')
         if role_name:
+            role_name = str(role_name).strip().lower()
+            if role_name not in (Role.STUDENT, Role.TEACHER, Role.ADMIN):
+                return Response({'detail': f'Role "{role_name}" không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
             try:
                 role, _ = Role.objects.get_or_create(name=role_name)
                 user = self.get_object()
@@ -112,21 +153,21 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 user.save()
                 
                 # Update profiles based on new role
-                import random, string
+                import uuid
                 if role_name != old_role_name:
                     if role_name == 'teacher':
                         if hasattr(user, 'student_profile'):
                             user.student_profile.delete()
                         if not hasattr(user, 'teacher_profile'):
                             from .models import TeacherProfile
-                            code = 'GV-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                            code = 'GV-' + uuid.uuid4().hex[:8].upper()
                             TeacherProfile.objects.create(user=user, teacher_code=code)
                     elif role_name == 'student':
                         if hasattr(user, 'teacher_profile'):
                             user.teacher_profile.delete()
                         if not hasattr(user, 'student_profile'):
                             from .models import StudentProfile
-                            code = 'HS-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                            code = 'HS-' + uuid.uuid4().hex[:8].upper()
                             StudentProfile.objects.create(user=user, student_code=code)
                     elif role_name == 'admin':
                         if hasattr(user, 'student_profile'):
@@ -164,9 +205,9 @@ class DashboardStatsView(APIView):
                 'total_students': User.objects.filter(role__name='student').count(),
                 'total_classes': Class.objects.count(),
                 'total_subjects': Subject.objects.count(),
-                'total_quizzes': Quiz.objects.count(),
-                'total_attempts': QuizAttempt.objects.filter(is_completed=True).count(),
-                'avg_score_system': round(QuizAttempt.objects.filter(is_completed=True).aggregate(Avg('score'))['score__avg'] or 0, 2),
+                'total_quizzes': Quiz.objects.exclude(created_by__role__name='student').count(),
+                'total_attempts': QuizAttempt.objects.filter(is_completed=True).exclude(quiz__created_by__role__name='student').count(),
+                'avg_score_system': round(QuizAttempt.objects.filter(is_completed=True).exclude(quiz__created_by__role__name='student').aggregate(Avg('score'))['score__avg'] or 0, 2),
             }
             # Recent registrations
             recent_users = User.objects.order_by('-created_at')[:5]
@@ -183,10 +224,13 @@ class DashboardStatsView(APIView):
             data['stats'] = {
                 'total_classes': classes.count(),
                 'total_students': ClassStudent.objects.filter(classroom__in=classes).values('student').distinct().count(),
-                'total_quizzes': Quiz.objects.filter(classroom__in=classes).count(),
+                'total_quizzes': Quiz.objects.filter(classroom__in=classes).exclude(created_by__role__name='student').count(),
             }
             # Recent submissions in their classes
-            recent_attempts = QuizAttempt.objects.filter(quiz__classroom__in=classes, is_completed=True).order_by('-end_time')[:5]
+            recent_attempts = QuizAttempt.objects.filter(
+                quiz__classroom__in=classes,
+                is_completed=True,
+            ).exclude(quiz__created_by__role__name='student').order_by('-end_time')[:5]
             for a in recent_attempts:
                 data['recent_activities'].append({
                     'type': 'quiz_submission',
@@ -218,14 +262,21 @@ class DashboardStatsView(APIView):
 
 def _build_report_queryset(user, params):
     """Helper to build filtered queryset for reports."""
+    from django.utils.dateparse import parse_date
+
     from_date = params.get('from_date')
     to_date = params.get('to_date')
     teacher_id = params.get('teacher_id')
     class_id = params.get('class_id')
 
-    qs = QuizAttempt.objects.filter(is_completed=True).select_related(
-        'student', 'student__student_profile',
-        'quiz', 'quiz__classroom', 'quiz__classroom__teacher', 'quiz__classroom__subject'
+    qs = (
+        QuizAttempt.objects
+        .filter(is_completed=True)
+        .exclude(quiz__created_by__role__name='student')
+        .select_related(
+            'student', 'student__student_profile',
+            'quiz', 'quiz__classroom', 'quiz__classroom__teacher', 'quiz__classroom__subject'
+        )
     )
 
     # Role-based filtering
@@ -242,9 +293,15 @@ def _build_report_queryset(user, params):
         return QuizAttempt.objects.none()
 
     if from_date:
-        qs = qs.filter(end_time__date__gte=from_date)
+        parsed_from = parse_date(str(from_date))
+        if not parsed_from:
+            raise ValueError('from_date không hợp lệ.')
+        qs = qs.filter(end_time__date__gte=parsed_from)
     if to_date:
-        qs = qs.filter(end_time__date__lte=to_date)
+        parsed_to = parse_date(str(to_date))
+        if not parsed_to:
+            raise ValueError('to_date không hợp lệ.')
+        qs = qs.filter(end_time__date__lte=parsed_to)
     if class_id:
         qs = qs.filter(quiz__classroom_id=class_id)
 
@@ -259,11 +316,21 @@ class AdminReportView(APIView):
         if not _is_teacher_or_admin(request.user):
             return Response({'detail': 'Bạn không có quyền xem báo cáo.'}, status=status.HTTP_403_FORBIDDEN)
 
-        qs = _build_report_queryset(request.user, request.query_params)
+        try:
+            qs = _build_report_queryset(request.user, request.query_params)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except DjangoValidationError:
+            return Response({'detail': 'Bộ lọc báo cáo không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Simple manual pagination
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 50))
+        try:
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 50))
+        except (TypeError, ValueError):
+            return Response({'detail': 'Tham số phân trang không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
+        page = max(1, page)
+        page_size = max(1, min(page_size, 200))
         start = (page - 1) * page_size
         end = start + page_size
         
@@ -293,7 +360,6 @@ class AdminReportView(APIView):
 
 from django.http import HttpResponse
 import openpyxl
-from openpyxl.styles import Font, Alignment
 
 class AdminExportView(APIView):
     """Admin-only: Export quiz attempts to Excel."""
@@ -303,23 +369,23 @@ class AdminExportView(APIView):
         if not _is_teacher_or_admin(request.user):
             return Response({'detail': 'Bạn không có quyền xuất dữ liệu.'}, status=status.HTTP_403_FORBIDDEN)
 
-        qs = _build_report_queryset(request.user, request.query_params)
-        
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Bảng điểm"
+        try:
+            qs = _build_report_queryset(request.user, request.query_params)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except DjangoValidationError:
+            return Response({'detail': 'Bộ lọc báo cáo không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        max_rows = 10000
+        wb = openpyxl.Workbook(write_only=True)
+        ws = wb.create_sheet(title="Bảng điểm")
 
         # Headers
         headers = ["STT", "Học sinh", "Mã HS", "Lớp", "Môn", "Giáo viên", "Tên đề", "Điểm", "Thời gian nộp"]
         ws.append(headers)
-        
-        # Style headers
-        for cell in ws[1]:
-            cell.font = Font(bold=True)
-            cell.alignment = Alignment(horizontal='center')
 
-        # Data
-        for idx, a in enumerate(qs, 1):
+        # Data (capped and streamed to the response)
+        for idx, a in enumerate(qs[:max_rows].iterator(), 1):
             ws.append([
                 idx,
                 a.student.full_name,
@@ -331,19 +397,6 @@ class AdminExportView(APIView):
                 a.score,
                 a.end_time.strftime("%d/%m/%Y %H:%M") if a.end_time else ""
             ])
-
-        # Column width adjustment
-        for column in ws.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = (max_length + 2)
-            ws.column_dimensions[column_letter].width = adjusted_width
 
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

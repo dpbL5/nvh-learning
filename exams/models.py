@@ -1,6 +1,8 @@
 from django.db import models
 from accounts.models import User
 from classes.models import Class, Subject
+import re
+from fractions import Fraction
 
 
 class ImageBank(models.Model):
@@ -16,6 +18,7 @@ class ImageBank(models.Model):
     width_pt = models.FloatField(null=True, blank=True, help_text="Độ rộng hiển thị (pt) trong docx gốc")
     height_pt = models.FloatField(null=True, blank=True, help_text="Độ cao hiển thị (pt) trong docx gốc")
     image_url = models.URLField(max_length=1000, blank=True, null=True, help_text="Link ảnh trực tiếp (vd: Cloudinary)")
+    cloudinary_public_id = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -47,6 +50,11 @@ class Question(models.Model):
         help_text="Dạng câu hỏi theo format đề thi THPT 2025."
     )
     text = models.TextField(help_text="Nội dung câu hỏi chính (text thô).", blank=True, null=True)
+    question_text = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text="Tiêu đề/vấn đề chính (dùng cho dạng Đúng/Sai)."
+    )
+    topic = models.CharField(max_length=200, blank=True, default='', help_text="Chủ đề cụ thể.")
     content_json = models.JSONField(
         blank=True, null=True, 
         help_text="Nội dung câu hỏi dạng blocks [{type: 'text', value: '...'}, {type: 'image', sha256: '...'}]"
@@ -101,7 +109,8 @@ class QuestionImage(models.Model):
         # unique_together = ('question', 'image', 'placement', 'position')
         
     def __str__(self):
-        return f"Q{self.question.id} -> {self.image.sha256[:8]}"
+        image_label = self.image.sha256[:8] if self.image else (self.image_url or 'no-image')
+        return f"Q{self.question_id} -> {image_label}"
 
 
 class Option(models.Model):
@@ -153,6 +162,9 @@ class QuizQuestion(models.Model):
 
     class Meta:
         ordering = ['order']
+        constraints = [
+            models.UniqueConstraint(fields=['quiz', 'question'], name='uniq_quiz_question'),
+        ]
 
     def __str__(self):
         return f"{self.quiz.title} - Q{self.order}"
@@ -189,6 +201,30 @@ class StudentAnswer(models.Model):
         help_text="Đáp án text (cho dạng trả lời ngắn)."
     )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['attempt', 'quiz_question', 'selected_option'],
+                condition=models.Q(selected_option__isnull=False),
+                name='uniq_student_answer_option',
+            ),
+            models.UniqueConstraint(
+                fields=['attempt', 'quiz_question'],
+                condition=models.Q(selected_option__isnull=True),
+                name='uniq_student_answer_text',
+            ),
+        ]
+
+    @staticmethod
+    def _normalize_short_answer(value):
+        text = re.sub(r'\s+', '', str(value or '').strip().lower().replace(',', '.'))
+        if not text:
+            return ''
+        try:
+            return Fraction(text)
+        except (ValueError, ZeroDivisionError):
+            return text
+
     def is_correct(self):
         """Kiểm tra đáp án đúng dựa trên dạng câu hỏi."""
         q_type = self.quiz_question.question.question_type
@@ -207,7 +243,7 @@ class StudentAnswer(models.Model):
             correct = self.quiz_question.question.correct_answer_text
             if not correct or not self.answer_text:
                 return False
-            return self.answer_text.strip().lower() == correct.strip().lower()
+            return self._normalize_short_answer(self.answer_text) == self._normalize_short_answer(correct)
 
         return False
 

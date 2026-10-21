@@ -28,11 +28,36 @@ class ClassSerializer(serializers.ModelSerializer):
     def get_total_quizzes(self, obj):
         return obj.quizzes.count()
 
+    @staticmethod
+    def _attempts_prefetched(obj):
+        cache = getattr(obj, '_prefetched_objects_cache', {})
+        if 'quizzes' not in cache:
+            return False
+        return all(
+            'attempts' in getattr(quiz, '_prefetched_objects_cache', {})
+            for quiz in cache['quizzes']
+        )
+
     def get_total_attempts(self, obj):
+        if self._attempts_prefetched(obj):
+            return sum(
+                1
+                for quiz in obj.quizzes.all()
+                for attempt in quiz.attempts.all()
+                if attempt.is_completed
+            )
         from exams.models import QuizAttempt
         return QuizAttempt.objects.filter(quiz__classroom=obj, is_completed=True).count()
 
     def get_avg_score(self, obj):
+        if self._attempts_prefetched(obj):
+            scores = [
+                attempt.score
+                for quiz in obj.quizzes.all()
+                for attempt in quiz.attempts.all()
+                if attempt.is_completed and attempt.score is not None
+            ]
+            return round(sum(scores) / len(scores), 2) if scores else 0.0
         from exams.models import QuizAttempt
         from django.db.models import Avg
         avg = QuizAttempt.objects.filter(quiz__classroom=obj, is_completed=True).aggregate(Avg('score'))['score__avg']

@@ -35,6 +35,12 @@ class Notification(models.Model):
     class Meta:
         db_table = 'notifications'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['recipient', 'verb', 'target_id'],
+                name='uniq_notification_recipient_target',
+            ),
+        ]
 
     def __str__(self):
         return f"[{self.verb}] → {self.recipient.username}: {self.message[:60]}"

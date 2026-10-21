@@ -10,9 +10,7 @@ function normalizeListResponse(data) {
 }
 
 function authHeaders(isMultipart = false) {
-    const headers = {
-        'Authorization': 'Bearer ' + localStorage.getItem('access')
-    };
+    const headers = {};
     if (!isMultipart) {
         headers['Content-Type'] = 'application/json';
     }
@@ -77,7 +75,7 @@ async function loadRagDocuments(classId) {
         if (!res.ok) { status.textContent = 'Không thể tải tài liệu.'; return; }
         const docs = await res.json();
         if (Array.isArray(docs) && docs.length > 0) {
-            docs.forEach(d => sel.add(new Option(d.title || d.file_path, d.id)));
+            docs.forEach(d => sel.add(new Option(d.title || 'Tài liệu', d.id)));
             status.textContent = `Đã tải ${docs.length} tài liệu.`;
         } else {
             status.textContent = 'Lớp học này chưa có tài liệu nào.';
@@ -124,12 +122,10 @@ function renderQuestionContent(q) {
 
     } else if (type === 'true_false') {
         if (q.context) {
-            // Use QuestionRenderer's markdown helper if we want consistency, 
-            // but since it's private (_renderMarkdownInline), we'll do a simple marked call here 
-            // or just use QuestionRenderer.renderStem for the context if it was treated as a stem.
-            // For now, let's just use window.marked directly as it's available.
-            const safeContext = q.context.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            html += `<div class="bg-light border rounded p-2 mb-2 small fst-italic q-markdown-text markdown-inline">${marked.parseInline(safeContext)}</div>`;
+            const safeContext = escapeHtml(q.context);
+            let renderedContext = marked.parseInline(safeContext);
+            if (window.sanitizeMarkdownHtml) renderedContext = window.sanitizeMarkdownHtml(renderedContext);
+            html += `<div class="bg-light border rounded p-2 mb-2 small fst-italic q-markdown-text markdown-inline">${renderedContext}</div>`;
         }
         html += (q.options || []).map((o, i) => {
             const l = String.fromCharCode(97 + i); // a, b, c, d
@@ -151,7 +147,7 @@ function renderQuestionContent(q) {
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 async function init() {
-    const me = await window.getCurrentUser();
+    const me = await window.getCurrentUser(true);
     if (!me) { window.location.href = '/login/'; return; }
 
     try {
@@ -215,7 +211,7 @@ async function init() {
         if (aiExtractSub) {
             aiExtractSub.removeAttribute('required');
             if (quizData?.subject_id) {
-                aiExtractSub.innerHTML = `<option value="${quizData.subject_id}" selected>${quizData.subject_name || ''}</option>`;
+                aiExtractSub.innerHTML = `<option value="${quizData.subject_id}" selected>${escapeHtml(quizData.subject_name || '')}</option>`;
             }
         }
 
@@ -224,7 +220,7 @@ async function init() {
             const ragClassSelect = document.getElementById('ragClass');
             if (ragClassSelect) {
                 // Trong Quiz Builder, mặc định chọn sẵn lớp của Quiz và ẩn selector lớp (hoặc disabled)
-                ragClassSelect.innerHTML = `<option value="${quizData.classroom}" selected>${quizData.classroom_name}</option>`;
+                ragClassSelect.innerHTML = `<option value="${quizData.classroom}" selected>${escapeHtml(quizData.classroom_name)}</option>`;
                 ragClassSelect.disabled = true;
                 await loadRagDocuments(quizData.classroom);
             }
@@ -242,7 +238,7 @@ function showInitError(msg) {
     const loading = document.getElementById('loadingQuiz');
     if (loading) {
         loading.innerHTML = `<div class="alert alert-danger mx-auto" style="max-width:500px">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i> ${msg}
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> ${escapeHtml(msg)}
             <div class="mt-3"><button class="btn btn-sm btn-outline-danger" onclick="location.reload()">Thử lại</button></div>
         </div>`;
     }
@@ -383,9 +379,9 @@ function renderSelectedQuestions() {
                     </span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-sm btn-light text-primary px-2 border" onclick="editQuestion(${q.id})" title="Sửa nội dung">
+                    ${q.can_edit ? `<button class="btn btn-sm btn-light text-primary px-2 border" onclick="editQuestion(${q.id})" title="Sửa nội dung">
                         <i class="bi bi-pencil-square"></i>
-                    </button>
+                    </button>` : ''}
                     <button class="btn btn-sm btn-light text-danger px-2 border" onclick="promptRemoveQQ(${qq.id})" title="Rút câu hỏi này">
                         <i class="bi bi-trash-fill"></i>
                     </button>
@@ -442,7 +438,7 @@ async function loadQuestionBank(page = 1) {
     } catch (err) {
         console.error('Lỗi loadQuestionBank:', err);
         const list = document.getElementById('questionBankList');
-        if (list) list.innerHTML = `<div class="p-4 text-center text-danger small">Lỗi: ${err.message}</div>`;
+        if (list) list.innerHTML = `<div class="p-4 text-center text-danger small">Lỗi: ${escapeHtml(err.message)}</div>`;
     }
 }
 
@@ -514,10 +510,10 @@ function renderQuestionBank(questions) {
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex gap-1">
                     ${typeBadge(q.question_type)}
-                    <span class="text-muted" style="font-size:0.7rem; font-weight:500;">${q.subject_name}</span>
+                    <span class="text-muted" style="font-size:0.7rem; font-weight:500;">${escapeHtml(q.subject_name)}</span>
                 </div>
                 <div class="d-flex gap-1 align-items-center">
-                    <button class="btn btn-sm btn-link text-muted p-1" onclick="editQuestion(${q.id})" title="Sửa"><i class="bi bi-pencil-square"></i></button>
+                    ${q.can_edit ? `<button class="btn btn-sm btn-link text-muted p-1" onclick="editQuestion(${q.id})" title="Sửa"><i class="bi bi-pencil-square"></i></button>` : ''}
                     ${actionBtn}
                 </div>
             </div>

@@ -57,15 +57,25 @@ class QuestionSerializer(serializers.ModelSerializer):
     question_type_display = serializers.CharField(
         source='get_question_type_display', read_only=True
     )
+    can_edit = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
         fields = [
             'id', 'question_type', 'question_type_display',
             'subject', 'subject_name', 'difficulty',
-            'text', 'content_json', 'context', 'image', 'correct_answer_text',
-            'created_at', 'options', 'question_images', 'options_data', 'images_data'
+            'text', 'question_text', 'topic', 'content_json', 'context', 'image', 'correct_answer_text',
+            'created_at', 'options', 'question_images', 'options_data', 'images_data',
+            'can_edit',
         ]
+
+    def get_can_edit(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return False
+        role_name = getattr(user.role, 'name', None)
+        return role_name == 'admin' or user.is_superuser or obj.created_by_id == user.id
 
     def _blocks_to_text(self, blocks):
         if not isinstance(blocks, list):
@@ -199,6 +209,10 @@ class QuestionSerializer(serializers.ModelSerializer):
     def _handle_images(self, question, images_data, user):
         if not isinstance(images_data, list):
             return
+        from ai_core.services.cloudinary_service import (
+            cloudinary_asset_from_url,
+            is_allowed_remote_url,
+        )
         for img in images_data:
             sha256 = img.get('sha256')
             url = img.get('url') or img.get('image_url')
@@ -217,6 +231,10 @@ class QuestionSerializer(serializers.ModelSerializer):
                 
                 if url and (created or not img_bank.image_file or not img_bank.image_file.name.startswith('http')):
                     img_bank.image_file.name = url
+                    if is_allowed_remote_url(url):
+                        public_id, _ = cloudinary_asset_from_url(url)
+                        if public_id:
+                            img_bank.cloudinary_public_id = public_id
                     img_bank.save()
 
             if not img_bank and not url:
@@ -253,6 +271,7 @@ class QuizSerializer(serializers.ModelSerializer):
     question_count = serializers.SerializerMethodField()
     my_attempt = serializers.SerializerMethodField()
     average_score = serializers.SerializerMethodField()
+    duration_minutes = serializers.IntegerField(min_value=1, max_value=600, required=False)
 
     class Meta:
         model = Quiz
@@ -265,11 +284,22 @@ class QuizSerializer(serializers.ModelSerializer):
     def get_question_count(self, obj):
         return obj.quiz_questions.count()
 
+    def validate(self, attrs):
+        if 'publish_at' in attrs or 'due_date' in attrs:
+            publish_at = attrs.get('publish_at', getattr(self.instance, 'publish_at', None))
+            due_date = attrs.get('due_date', getattr(self.instance, 'due_date', None))
+            if publish_at and due_date and due_date <= publish_at:
+                raise serializers.ValidationError({'due_date': 'Hạn nộp phải sau thời điểm công khai.'})
+        return attrs
+
     def get_my_attempt(self, obj):
         user = self.context.get('request').user
         if not user or user.is_anonymous:
             return None
-        attempt = QuizAttempt.objects.filter(quiz=obj, student=user).first()
+        if hasattr(obj, '_prefetched_objects_cache') and 'attempts' in obj._prefetched_objects_cache:
+            attempt = next((a for a in obj.attempts.all() if a.student_id == user.id), None)
+        else:
+            attempt = QuizAttempt.objects.filter(quiz=obj, student=user).first()
         if attempt:
             return {
                 'id': attempt.id,
@@ -282,6 +312,9 @@ class QuizSerializer(serializers.ModelSerializer):
     def get_average_score(self, obj):
         if not obj.is_published:
             return None
+        if hasattr(obj, '_prefetched_objects_cache') and 'attempts' in obj._prefetched_objects_cache:
+            scores = [a.score for a in obj.attempts.all() if a.is_completed and a.score is not None]
+            return round(sum(scores) / len(scores), 2) if scores else 0
         from django.db.models import Avg
         stats = QuizAttempt.objects.filter(quiz=obj, is_completed=True).aggregate(avg_score=Avg('score'))
         return round(stats['avg_score'], 2) if stats['avg_score'] is not None else 0
@@ -316,7 +349,7 @@ class QuestionPublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ['id', 'question_type', 'text', 'content_json', 'context', 'image', 'options', 'question_images']
+        fields = ['id', 'question_type', 'text', 'question_text', 'topic', 'content_json', 'context', 'image', 'options', 'question_images']
         # Lưu ý: KHÔNG trả correct_answer_text cho học sinh
 
 
@@ -344,7 +377,7 @@ class QuestionReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = [
-            'id', 'question_type', 'text', 'content_json', 'context',
+            'id', 'question_type', 'text', 'question_text', 'topic', 'content_json', 'context',
             'image', 'options', 'question_images', 'correct_answer_text', 'explanation',
             'subject_name', 'difficulty', 'difficulty_display'
         ]

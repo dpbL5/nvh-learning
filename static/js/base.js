@@ -1,4 +1,84 @@
 // Navbar scroll effect
+function escapeHtml(value) {
+    return (value ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+window.escapeHtml = escapeHtml;
+
+function sanitizeMarkdownHtml(html) {
+    return (html ?? '').toString().replace(
+        /\b(href|src)\s*=\s*("|')\s*(?:javascript|data|vbscript):[^"']*\2/gi,
+        '$1="#"'
+    );
+}
+window.sanitizeMarkdownHtml = sanitizeMarkdownHtml;
+
+window.getCloudinarySignature = async function() {
+    const res = await fetch('/api/exams/cloudinary-signature/', { headers: authHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.error || 'Không thể lấy chữ ký tải ảnh lên.');
+    }
+    return data;
+};
+
+function authHeaders(extra) {
+    return Object.assign({}, extra || {});
+}
+
+// Transparently refresh expired access tokens once per request.
+(function installTokenRefresh() {
+    const nativeFetch = window.fetch.bind(window);
+    let refreshPromise = null;
+
+    function clearAuthState() {
+        localStorage.removeItem('auth_hint');
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+        localStorage.removeItem('user_profile');
+    }
+
+    async function refreshAccessToken() {
+        if (!localStorage.getItem('auth_hint')) return false;
+        try {
+            const res = await nativeFetch('/api/accounts/token/refresh/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+            if (!res.ok) {
+                clearAuthState();
+                return false;
+            }
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    window.fetch = async function(input, init) {
+        const response = await nativeFetch(input, init);
+        if (response.status !== 401 || typeof input !== 'string') return response;
+
+        const isAuthEndpoint = input.includes('/api/accounts/login/') ||
+            input.includes('/api/accounts/token/refresh/');
+        if (isAuthEndpoint || !localStorage.getItem('auth_hint')) return response;
+
+        if (!refreshPromise) {
+            refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null; });
+        }
+        const refreshed = await refreshPromise;
+        if (!refreshed) return response;
+        return nativeFetch(input, init);
+    };
+})();
+
 window.addEventListener('scroll', () => {
     document.getElementById('mainNavbar').classList.toggle('scrolled', window.scrollY > 10);
 });
@@ -17,7 +97,7 @@ function showGlobalAlert(msg, type='success') {
         <div style="background:rgba(255,255,255,0.2); width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
             <i class="bi ${icon} fs-5"></i>
         </div>
-        <div style="font-weight:600; font-size:0.875rem; line-height:1.4;">${msg}</div>
+        <div style="font-weight:600; font-size:0.875rem; line-height:1.4;">${escapeHtml(msg)}</div>
         <button type="button" class="btn-close btn-close-white ms-auto opacity-50" style="font-size:0.65rem;" onclick="this.parentElement.remove()"></button>
     </div>`;
     
@@ -35,8 +115,7 @@ function showGlobalAlert(msg, type='success') {
 
 // Helper to fetch user with caching
 window.getCurrentUser = async function(forceRefresh = false) {
-    const token = localStorage.getItem('access');
-    if (!token) return null;
+    if (!localStorage.getItem('auth_hint')) return null;
 
     if (!forceRefresh) {
         const cached = localStorage.getItem('user_profile');
@@ -46,13 +125,18 @@ window.getCurrentUser = async function(forceRefresh = false) {
     }
 
     try {
-        const res = await fetch('/api/accounts/me/', { headers: { 'Authorization': 'Bearer ' + token } });
+        const res = await fetch('/api/accounts/me/', { headers: authHeaders() });
         if (res.ok) {
             const user = await res.json();
             localStorage.setItem('user_profile', JSON.stringify(user));
             return user;
         }
-        if (res.status === 401) doLogout(); // Token expired
+        if (res.status === 401) {
+            localStorage.removeItem('auth_hint');
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
+            localStorage.removeItem('user_profile');
+        }
     } catch (e) { console.error('Auth fetch failed', e); }
     return null;
 };
@@ -84,9 +168,9 @@ window.updateNavbarUI = function(user) {
 
         <div class="d-flex align-items-center gap-2 px-2">
             <div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;">
-                ${initials.toUpperCase()}
+                ${escapeHtml(initials.toUpperCase())}
             </div>
-            <span style="font-size:0.82rem;color:rgba(255,255,255,0.85);font-weight:500;">${user.first_name || user.username}</span>
+            <span style="font-size:0.82rem;color:rgba(255,255,255,0.85);font-weight:500;">${escapeHtml(user.first_name || user.username)}</span>
         </div>
         <div class="nav-divider"></div>
         <button class="nav-btn nav-btn-logout" onclick="doLogout()"><i class="bi bi-box-arrow-right"></i> Thoát</button>
@@ -95,6 +179,11 @@ window.updateNavbarUI = function(user) {
 
 // Flash from sessionStorage
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!localStorage.getItem('auth_hint')) {
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+    }
+
     const _alert = sessionStorage.getItem('globalAlert');
     if (_alert) {
         const {msg, type} = JSON.parse(_alert);
@@ -103,7 +192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Update navbar if logged in
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(true);
     if (user) {
         updateNavbarUI(user);
         setupNotificationPolling();
@@ -113,10 +202,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Notifications (Bell & Dropdown) ───────────────────────────────────────
 
 window.refreshNotifCount = async function() {
-    const token = localStorage.getItem('access');
-    if (!token) return;
+    if (!localStorage.getItem('auth_hint')) return;
     try {
-        const res = await fetch('/api/notifications/unread-count/', { headers: { 'Authorization': 'Bearer ' + token } });
+        const res = await fetch('/api/notifications/unread-count/', { headers: authHeaders() });
         if (res.ok) {
             const data = await res.json();
             const badge = document.getElementById('navBellBadge');
@@ -160,11 +248,10 @@ function setupNotificationPolling() {
     if (markAllBtn) {
         markAllBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            const token = localStorage.getItem('access');
-            if (!token) return;
+            if (!localStorage.getItem('auth_hint')) return;
             await fetch('/api/notifications/mark-all-read/', {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token }
+                headers: authHeaders()
             });
             window.refreshNotifCount();
             dropdown.style.display = 'none';
@@ -177,12 +264,11 @@ async function loadNotifDropdown() {
     if (!list) return;
     list.innerHTML = '<div class="text-center text-muted py-4 small"><div class="spinner-border spinner-border-sm"></div></div>';
     
-    const token = localStorage.getItem('access');
-    if (!token) return;
+    if (!localStorage.getItem('auth_hint')) return;
     
     try {
         // Fetch page 1
-        const res = await fetch('/api/notifications/?page=1', { headers: { 'Authorization': 'Bearer ' + token } });
+        const res = await fetch('/api/notifications/?page=1', { headers: authHeaders() });
         if (!res.ok) throw new Error();
         const data = await res.json();
         const notifs = data.results || [];
@@ -205,8 +291,8 @@ async function loadNotifDropdown() {
             else if (diff >= 60) timeStr = `${Math.floor(diff / 60)} phút trước`;
 
             return `
-            <a href="${url}" class="text-decoration-none dropdown-notif-item" data-notif-id="${n.id}" data-is-read="${n.is_read}" style="display:block; padding:0.75rem 1rem; border-bottom:1px solid var(--color-border); ${unreadStyle}">
-                <div class="small fw-600 text-dark" style="line-height:1.3; margin-bottom:0.25rem;">${n.message}</div>
+            <a href="${escapeHtml(url)}" class="text-decoration-none dropdown-notif-item" data-notif-id="${n.id}" data-is-read="${n.is_read}" style="display:block; padding:0.75rem 1rem; border-bottom:1px solid var(--color-border); ${unreadStyle}">
+                <div class="small fw-600 text-dark" style="line-height:1.3; margin-bottom:0.25rem;">${escapeHtml(n.message)}</div>
                 <div class="small text-muted" style="font-size:0.7rem;"><i class="bi bi-clock me-1"></i>${timeStr}</div>
             </a>`;
         }).join('');
@@ -220,7 +306,7 @@ async function loadNotifDropdown() {
                     e.preventDefault();
                     await fetch(`/api/notifications/${id}/read/`, {
                         method: 'PATCH',
-                        headers: { 'Authorization': 'Bearer ' + token }
+                        headers: authHeaders()
                     });
                     window.location.href = el.getAttribute('href');
                 }
@@ -232,16 +318,14 @@ async function loadNotifDropdown() {
 }
 
 async function doLogout() {
-    const refresh = localStorage.getItem('refresh');
-    if (refresh) {
-        try {
-            await fetch('/api/accounts/logout/', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('access')},
-                body: JSON.stringify({refresh})
-            });
-        } catch (e) {}
-    }
+    try {
+        await fetch('/api/accounts/logout/', {
+            method: 'POST',
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({})
+        });
+    } catch (e) {}
+    localStorage.removeItem('auth_hint');
     localStorage.removeItem('access');
     localStorage.removeItem('refresh');
     localStorage.removeItem('user_profile');
@@ -250,8 +334,7 @@ async function doLogout() {
 
 // ── Report Export Helper (Shared) ────────────────────────────
 window.exportReport = async function() {
-    const token = localStorage.getItem('access');
-    if (!token) return;
+    if (!localStorage.getItem('auth_hint')) return;
 
     // Create modal if not exists
     let modalEl = document.getElementById('exportReportModal');
@@ -315,7 +398,7 @@ window.exportReport = async function() {
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Đang tạo file...';
             
             try {
-                const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+                const res = await fetch(url, { headers: authHeaders() });
                 if (!res.ok) throw new Error();
                 const blob = await res.blob();
                 const a = document.createElement('a');
@@ -343,12 +426,12 @@ window.exportReport = async function() {
 
     // Load classes dynamically
     try {
-        const res = await fetch('/api/classes/', { headers: { 'Authorization': 'Bearer ' + token } });
+        const res = await fetch('/api/classes/', { headers: authHeaders() });
         const classes = await res.json();
         const select = document.getElementById('exportClassSelect');
         const savedVal = select.value;
         select.innerHTML = '<option value="">Tất cả các lớp</option>' + 
-            classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            classes.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
         if (savedVal) select.value = savedVal;
     } catch (e) { console.error('Failed to load classes for export', e); }
 
@@ -377,7 +460,7 @@ window.loadReports = async function(page = 1, classId = '', fromDate = '', toDat
     const tbody = document.getElementById('reportsBody');
     if (!tbody) return;
 
-    const token = localStorage.getItem('access');
+    if (!localStorage.getItem('auth_hint')) return;
     let url = `/api/accounts/admin/report/?page=${page}`;
     if (classId) url += `&class_id=${classId}`;
     if (fromDate) url += `&from_date=${fromDate}`;
@@ -385,7 +468,7 @@ window.loadReports = async function(page = 1, classId = '', fromDate = '', toDat
     
     tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5"><div class="spinner-border spinner-border-sm text-primary"></div></td></tr>';
     
-    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await fetch(url, { headers: authHeaders() });
     if (res.ok) {
         const data = await res.json();
         renderReports(data.results || data);
@@ -406,14 +489,14 @@ function renderReports(reports) {
     tbody.innerHTML = reports.map(r => `
         <tr class="fade-in-row">
             <td class="px-4">
-                <div class="fw-bold text-dark">${r.student_name}</div>
-                <div class="small text-muted font-monospace">${r.student_code}</div>
+                <div class="fw-bold text-dark">${escapeHtml(r.student_name)}</div>
+                <div class="small text-muted font-monospace">${escapeHtml(r.student_code)}</div>
             </td>
-            <td><span class="badge bg-light text-dark border rounded-pill px-2">${r.class_name}</span></td>
-            <td><div class="small fw-semibold text-truncate" style="max-width:200px;">${r.quiz_title}</div></td>
+            <td><span class="badge bg-light text-dark border rounded-pill px-2">${escapeHtml(r.class_name)}</span></td>
+            <td><div class="small fw-semibold text-truncate" style="max-width:200px;">${escapeHtml(r.quiz_title)}</div></td>
             <td class="text-center">
                 <span class="badge rounded-pill ${r.score >= 5 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} px-3 shadow-none border">
-                    ${r.score}/10
+                    ${escapeHtml(r.score)}/10
                 </span>
             </td>
             <td class="text-end text-muted small px-4">${new Date(r.completed_at).toLocaleString('vi-VN')}</td>

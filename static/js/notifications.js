@@ -3,10 +3,22 @@
  * Handles paginated list, mark-one-read on click, and mark-all-read button.
  */
 
-const TOKEN = () => localStorage.getItem('access');
 const API = '/api/notifications/';
 
+function authHeaders() {
+    return {};
+}
+
 let currentPage = 1;
+
+function escapeHtml(value) {
+    return (value ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -24,14 +36,14 @@ function notifCardHTML(n) {
         : 'background:linear-gradient(135deg,#f0f0ff 0%,#fff 100%); border-left:4px solid var(--color-primary,#4f46e5);';
     const url = n.quiz_url || '/notifications/';
     return `
-    <a href="${url}" class="text-decoration-none" data-notif-id="${n.id}" data-is-read="${n.is_read}">
+    <a href="${escapeHtml(url)}" class="text-decoration-none" data-notif-id="${n.id}" data-is-read="${n.is_read}">
         <div class="d-flex gap-3 align-items-start px-3 py-3 border-bottom notif-card"
              style="${unreadStyle} transition:background .2s;">
             <div style="min-width:38px;height:38px;border-radius:50%;background:var(--color-primary,#4f46e5);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="bi bi-bell-fill text-white" style="font-size:.95rem;"></i>
             </div>
             <div style="flex:1;min-width:0;">
-                <div class="small fw-600 text-dark" style="line-height:1.4;">${n.message}</div>
+                <div class="small fw-600 text-dark" style="line-height:1.4;">${escapeHtml(n.message)}</div>
                 <div class="text-muted mt-1" style="font-size:.75rem;">
                     <i class="bi bi-clock me-1"></i>${relativeTime(n.created_at)}
                 </div>
@@ -75,7 +87,7 @@ function renderNotifPage(data) {
                 e.preventDefault();
                 await fetch(`${API}${id}/read/`, {
                     method: 'PATCH',
-                    headers: { 'Authorization': 'Bearer ' + TOKEN() },
+                    headers: authHeaders(),
                 });
                 window.location.href = el.getAttribute('href');
             }
@@ -103,13 +115,12 @@ function renderPagination(data) {
 
 async function loadPage(page = 1) {
     currentPage = page;
-    const token = TOKEN();
-    if (!token) { window.location.href = '/login/'; return; }
+    if (!localStorage.getItem('auth_hint')) { window.location.href = '/login/'; return; }
     document.getElementById('notifPageLoading').style.display = 'block';
     document.getElementById('notifPageList').style.display = 'none';
     try {
         const res = await fetch(`${API}?page=${page}`, {
-            headers: { 'Authorization': 'Bearer ' + token },
+            headers: authHeaders(),
         });
         if (!res.ok) throw new Error();
         const data = await res.json();
@@ -123,11 +134,10 @@ async function loadPage(page = 1) {
 // ── Mark all read ──────────────────────────────────────────────────────────
 
 async function markAllRead() {
-    const token = TOKEN();
-    if (!token) return;
+    if (!localStorage.getItem('auth_hint')) return;
     await fetch(`${API}mark-all-read/`, {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token },
+        headers: authHeaders(),
     });
     // Refresh count in navbar
     if (typeof window.refreshNotifCount === 'function') window.refreshNotifCount();

@@ -1,18 +1,26 @@
+function escapeHtml(value) {
+    return (value ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('access');
     let currentRole = null;
     const subjectColors = ['primary','success','warning','danger','info','secondary'];
     
-    if (!token) window.location.href = '/login/';
+    if (!localStorage.getItem('auth_hint')) window.location.href = '/login/';
     
-    function authH() { return {'Content-Type':'application/json','Authorization':'Bearer '+token}; }
+    function authH() { return {'Content-Type':'application/json'}; }
     function formatDate(dt) { return new Date(dt).toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}); }
     
     async function init() {
         const pageTitle = document.getElementById('pageTitle');
         if (!pageTitle) return; // Not on classes page
 
-        const me = await window.getCurrentUser();
+        const me = await window.getCurrentUser(true);
         if (!me) { window.location.href = '/login/'; return; }
         currentRole = me.role?.name;
     
@@ -64,23 +72,24 @@ document.addEventListener('DOMContentLoaded', () => {
             col.className = 'col-md-4 animate-in';
             col.style.animationDelay = (i * 0.05) + 's';
             const teacherName = [cls.teacher?.last_name, cls.teacher?.first_name].filter(Boolean).join(' ') || cls.teacher?.username || '–';
+            const safeName = escapeHtml(cls.name);
             const color = subjectColors[i % subjectColors.length];
             col.innerHTML = `
                 <div class="class-card" onclick="window.location.href='/classes/${cls.id}/'">
                     <div class="class-card-top" style="background:linear-gradient(90deg,var(--color-${color}),var(--color-secondary));"></div>
                     <div class="class-card-body">
                         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-                            <h6 class="class-name mb-0">${cls.name}</h6>
+                            <h6 class="class-name mb-0">${safeName}</h6>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge" style="background:var(--color-${color}-light,var(--color-primary-light));color:var(--color-${color},var(--color-primary));white-space:nowrap;">${cls.subject_name || 'Chưa có môn'}</span>
+                                <span class="badge" style="background:var(--color-${color}-light,var(--color-primary-light));color:var(--color-${color},var(--color-primary));white-space:nowrap;">${escapeHtml(cls.subject_name || 'Chưa có môn')}</span>
                                 ${(currentRole === 'teacher' || currentRole === 'admin') ? `
-                                <button class="btn btn-link text-danger p-0 border-0" onclick="event.stopPropagation(); deleteClass('${cls.id}', '${cls.name}')" title="Xoá lớp" style="box-shadow:none;">
+                                <button class="btn btn-link text-danger p-0 border-0" data-name="${safeName}" onclick="event.stopPropagation(); deleteClass('${cls.id}', this.dataset.name)" title="Xoá lớp" style="box-shadow:none;">
                                     <i class="bi bi-trash"></i>
                                 </button>` : ''}
                             </div>
                         </div>
                         <div class="class-meta d-flex flex-column gap-1">
-                            <span><i class="bi bi-person-fill me-1"></i>${teacherName}</span>
+                            <span><i class="bi bi-person-fill me-1"></i>${escapeHtml(teacherName)}</span>
                             <span><i class="bi bi-people me-1"></i>${cls.student_count} học sinh</span>
                             ${currentRole !== 'student' ? `
                             <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-1">
@@ -91,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                     <div class="class-footer">
-                        <span style="font-size:0.78rem;color:var(--color-muted);"><i class="bi bi-key me-1"></i>Mã: <strong style="color:var(--color-text);font-family:monospace;">${cls.invite_code}</strong></span>
+                        <span style="font-size:0.78rem;color:var(--color-muted);"><i class="bi bi-key me-1"></i>Mã: <strong style="color:var(--color-text);font-family:monospace;">${escapeHtml(cls.invite_code)}</strong></span>
                         <span style="font-size:0.78rem;color:var(--color-muted);"><i class="bi bi-calendar3 me-1"></i>${formatDate(cls.created_at)}</span>
                     </div>
                 </div>`;
@@ -115,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.ok) {
             bootstrap.Modal.getInstance(document.getElementById('createClassModal')).hide();
             document.getElementById('createClassForm').reset();
-            showGlobalAlert(`✅ Tạo lớp <b>${data.name}</b> thành công! Mã lớp: <strong style="font-family:monospace">${data.invite_code}</strong>`, 'success');
+            showGlobalAlert(`✅ Tạo lớp ${data.name} thành công! Mã lớp: ${data.invite_code}`, 'success');
             await loadClasses();
         } else {
             errEl.textContent = Object.values(data).flat().join(' • ') || 'Tạo lớp thất bại.';
@@ -136,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.ok) {
             bootstrap.Modal.getInstance(document.getElementById('joinClassModal')).hide();
             document.getElementById('inviteCode').value = '';
-            showGlobalAlert(`🎉 Đã tham gia lớp <b>${data.class_name}</b> thành công!`, 'success');
+            showGlobalAlert(`🎉 Đã tham gia lớp ${data.class_name} thành công!`, 'success');
             await loadClasses();
         } else {
             errEl.textContent = data.detail || 'Tham gia lớp thất bại.';
@@ -152,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         if (res.ok) {
-            showGlobalAlert(`Đã xoá lớp <b>${name}</b> thành công.`, 'success');
+            showGlobalAlert(`Đã xoá lớp ${name} thành công.`, 'success');
             await loadClasses();
         } else {
             const data = await res.json().catch(() => ({}));

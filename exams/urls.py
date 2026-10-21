@@ -3,6 +3,7 @@ from .views import (
     QuestionListCreateView, QuestionDetailView, OptionListCreateView,
     QuizListCreateView, QuizDetailView, QuizQuestionListCreateView,
     QuizQuestionDetailView, UploadImageView,
+    CloudinarySignatureView,
     QuestionImageUploadView, QuestionImageLinkView, QuestionImageUnlinkView,
     StudentQuizListView, QuizStartView, QuizSubmitView, ClassAnalyticsView,
     BulkDeleteQuestionsView, StudentProgressAPIView, TeacherAdminProgressAPIView
@@ -15,6 +16,7 @@ urlpatterns = [
     path('questions/<int:pk>/', QuestionDetailView.as_view(), name='question-detail'),
     path('questions/<int:pk>/update-full/', QuestionDetailView.as_view(), name='question-update-full'),
     path('questions/images/upload/', QuestionImageUploadView.as_view(), name='question-image-upload'),
+    path('cloudinary-signature/', CloudinarySignatureView.as_view(), name='cloudinary-signature'),
     path('questions/<int:pk>/images/link/', QuestionImageLinkView.as_view(), name='question-image-link'),
     path('questions/<int:pk>/images/<int:qimg_id>/', QuestionImageUnlinkView.as_view(), name='question-image-unlink'),
     path('questions/<int:question_id>/options/', OptionListCreateView.as_view(), name='option-list-create'),

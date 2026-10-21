@@ -2,14 +2,16 @@ from rest_framework import generics, permissions, status, pagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from django.views.decorators.vary import vary_on_headers
+from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
+from django.conf import settings
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError
 from django.db.models import Q, Avg, Max, Min, Count
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.core.files.base import ContentFile
-from classes.models import Class
+from datetime import timedelta
+from classes.models import Class, ClassStudent
 from .models import Question, Option, Quiz, QuizQuestion, QuizAttempt, StudentAnswer, ImageBank, QuestionImage
 from .serializers import (
     QuestionSerializer, OptionSerializer, QuizSerializer,
@@ -18,6 +20,28 @@ from .serializers import (
 )
 import hashlib
 import os
+import uuid
+import logging
+from io import BytesIO
+from PIL import Image
+
+logger = logging.getLogger(__name__)
+
+MAX_IMAGE_PIXELS = 40_000_000
+ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'}
+ALLOWED_IMAGE_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'}
+
+
+def _is_valid_image_bytes(data):
+    try:
+        with Image.open(BytesIO(data)) as image:
+            width, height = image.size
+            if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
+                return False
+            image.verify()
+        return True
+    except Exception:
+        return False
 
 
 def rebalance_quiz_question_points(quiz):
@@ -39,6 +63,54 @@ class IsTeacherOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         role_name = getattr(request.user.role, 'name', None)
         return role_name in ['teacher', 'admin'] or request.user.is_superuser
+
+
+def _is_admin_user(user):
+    return getattr(user.role, 'name', None) == 'admin' or user.is_superuser
+
+
+def _quiz_queryset_for_user(user):
+    qs = Quiz.objects.select_related('classroom', 'classroom__subject', 'created_by')
+    if _is_admin_user(user):
+        return qs
+    return (
+        qs.filter(Q(created_by=user) | Q(classroom__teacher=user))
+        .exclude(created_by__role__name='student')
+        .distinct()
+    )
+
+
+def _get_owned_quiz(user, quiz_id):
+    return get_object_or_404(_quiz_queryset_for_user(user), pk=quiz_id)
+
+
+def _can_manage_question(user, question):
+    return _is_admin_user(user) or question.created_by_id == user.id
+
+
+def _delete_orphan_images(image_ids):
+    if not image_ids:
+        return
+    from ai_core.services.cloudinary_service import cloudinary_asset_from_url, delete_from_cloudinary
+
+    for image_bank in ImageBank.objects.filter(
+        sha256__in=set(image_ids),
+        questionimage__isnull=True,
+    ):
+        file_name = image_bank.image_file.name if image_bank.image_file else ''
+        if file_name.startswith('http'):
+            public_id = image_bank.cloudinary_public_id
+            resource_type = 'image'
+            if not public_id:
+                public_id, resource_type = cloudinary_asset_from_url(file_name)
+            if public_id:
+                delete_from_cloudinary(public_id, resource_type or 'image')
+        elif image_bank.image_file:
+            try:
+                image_bank.image_file.delete(save=False)
+            except Exception:
+                logger.exception('Failed to delete image file %s', image_bank.sha256)
+        image_bank.delete()
 
 
 class IsTeacherOrAdminOrStudentReadOnly(permissions.BasePermission):
@@ -87,6 +159,10 @@ class QuestionListCreateView(generics.ListCreateAPIView):
         search = self.request.query_params.get('search')
 
         if subject_id:
+            try:
+                subject_id = int(subject_id)
+            except (TypeError, ValueError):
+                return Question.objects.none()
             qs = qs.filter(subject_id=subject_id)
         if difficulty:
             qs = qs.filter(difficulty=difficulty)
@@ -132,18 +208,74 @@ class QuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = QuestionSerializer
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
 
+    def update(self, request, *args, **kwargs):
+        question = self.get_object()
+        if not _can_manage_question(request.user, question):
+            raise PermissionDenied('Bạn không có quyền sửa câu hỏi của giáo viên khác.')
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        question = self.get_object()
+        if not _can_manage_question(request.user, question):
+            raise PermissionDenied('Bạn không có quyền xoá câu hỏi của giáo viên khác.')
+        return super().destroy(request, *args, **kwargs)
+
+    def perform_destroy(self, instance):
+        quiz_ids = list(
+            QuizQuestion.objects.filter(question=instance)
+            .values_list('quiz_id', flat=True)
+            .distinct()
+        )
+        image_ids = list(
+            QuestionImage.objects.filter(question=instance)
+            .values_list('image_id', flat=True)
+        )
+        instance.delete()
+        _delete_orphan_images(image_ids)
+        for quiz in Quiz.objects.filter(id__in=quiz_ids):
+            rebalance_quiz_question_points(quiz)
+
+
 class BulkDeleteQuestionsView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
-    
+
     def post(self, request):
         ids = request.data.get('ids', [])
-        if not ids:
+        if not isinstance(ids, list) or not ids:
             return Response({'error': 'No IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        count, _ = Question.objects.filter(id__in=ids).delete()
-        return Response({'message': f'Deleted {count} questions successfully'})
 
+        try:
+            requested_ids = {int(question_id) for question_id in ids}
+        except (TypeError, ValueError):
+            return Response({'error': 'Danh sách ID không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        questions = Question.objects.filter(id__in=requested_ids)
+        if not _is_admin_user(request.user):
+            questions = questions.filter(created_by=request.user)
+
+        question_ids = list(questions.values_list('id', flat=True))
+        if len(question_ids) != len(requested_ids):
+            return Response(
+                {'error': 'Bạn chỉ có thể xoá câu hỏi do mình tạo.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        quiz_ids = list(
+            QuizQuestion.objects.filter(question_id__in=question_ids)
+            .values_list('quiz_id', flat=True)
+            .distinct()
+        )
+        image_ids = list(
+            QuestionImage.objects.filter(question_id__in=question_ids)
+            .values_list('image_id', flat=True)
+        )
+        deleted_count = len(question_ids)
+        Question.objects.filter(id__in=question_ids).delete()
+        _delete_orphan_images(image_ids)
+        for quiz in Quiz.objects.filter(id__in=quiz_ids):
+            rebalance_quiz_question_points(quiz)
+
+        return Response({'message': f'Deleted {deleted_count} questions successfully'})
 
 
 class OptionListCreateView(generics.ListCreateAPIView):
@@ -155,8 +287,25 @@ class OptionListCreateView(generics.ListCreateAPIView):
         return Option.objects.filter(question_id=question_id)
 
     def perform_create(self, serializer):
-        question_id = self.kwargs.get('question_id')
-        serializer.save(question_id=question_id)
+        question = get_object_or_404(Question, pk=self.kwargs.get('question_id'))
+        if not _can_manage_question(self.request.user, question):
+            raise PermissionDenied('Bạn không có quyền sửa câu hỏi của giáo viên khác.')
+        serializer.save(question=question)
+
+
+class CloudinarySignatureView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+
+    def get(self, request):
+        from ai_core.services.cloudinary_service import get_upload_signature
+
+        signature = get_upload_signature()
+        if not signature:
+            return Response(
+                {'error': 'Cloudinary chưa được cấu hình (CLOUDINARY_API_KEY/SECRET).'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(signature)
 
 
 class UploadImageView(APIView):
@@ -175,13 +324,20 @@ class UploadImageView(APIView):
         
         try:
             ext = os.path.splitext(file_obj.name)[1].lower()
-            if ext not in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']:
+            if ext not in ALLOWED_IMAGE_EXTENSIONS:
                 return Response({"error": "Unsupported image format."}, status=status.HTTP_400_BAD_REQUEST)
 
+            content_type = (file_obj.content_type or '').lower()
+            if content_type and content_type not in ALLOWED_IMAGE_MIME_TYPES:
+                return Response({"error": "Unsupported image MIME type."}, status=status.HTTP_400_BAD_REQUEST)
+
             file_bytes = file_obj.read()
+            if not file_bytes or not _is_valid_image_bytes(file_bytes):
+                return Response({"error": "Invalid image content."}, status=status.HTTP_400_BAD_REQUEST)
             file_name = f"editor_{uuid.uuid4().hex}{ext}"
             
             image_url = upload_to_cloudinary(file_bytes, file_name)
+            image_url = image_url.get('secure_url') if image_url else None
             if not image_url:
                 return Response({"error": "Failed to upload to cloud storage"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -192,8 +348,9 @@ class UploadImageView(APIView):
                 "location": image_url,  # TinyMCE
             })
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception('Editor image upload failed')
+            return Response({"error": "Không thể tải ảnh lên. Vui lòng thử lại sau."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class QuestionImageUploadView(APIView):
@@ -222,6 +379,8 @@ class QuestionImageUploadView(APIView):
         file_bytes = file_obj.read()
         if not file_bytes:
             return Response({'error': 'Image is empty.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not _is_valid_image_bytes(file_bytes):
+            return Response({'error': 'Invalid image content.'}, status=status.HTTP_400_BAD_REQUEST)
 
         sha256_hash = hashlib.sha256(file_bytes).hexdigest()
         relative_path = f'questions/images/bank/{sha256_hash}{ext}'
@@ -235,14 +394,24 @@ class QuestionImageUploadView(APIView):
             }
         )
 
-        if created:
+        needs_upload = created or not image_bank.image_file
+        if needs_upload:
             from ai_core.services.cloudinary_service import upload_to_cloudinary
-            secure_url = upload_to_cloudinary(file_bytes, file_obj.name)
+            cloudinary_res = upload_to_cloudinary(file_bytes, file_obj.name)
+            secure_url = cloudinary_res.get('secure_url') if cloudinary_res else None
             if secure_url:
                 image_bank.image_file.name = secure_url
+                image_bank.cloudinary_public_id = cloudinary_res.get('public_id') or image_bank.cloudinary_public_id
                 image_bank.save()
-            else:
+            elif settings.DEBUG:
                 image_bank.image_file.save(relative_path, ContentFile(file_bytes), save=True)
+            else:
+                if created:
+                    image_bank.delete()
+                return Response(
+                    {'error': 'Không thể lưu ảnh lên kho lưu trữ. Vui lòng thử lại.'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
 
         request_source_type = request.data.get('source_type', 'user_upload')
         source_type = request_source_type if request_source_type in {'ai_scan', 'user_upload', 'system'} else 'user_upload'
@@ -252,8 +421,10 @@ class QuestionImageUploadView(APIView):
         if question_id:
             try:
                 question = Question.objects.get(pk=question_id)
-            except Question.DoesNotExist:
+            except (Question.DoesNotExist, ValueError, TypeError, ValidationError):
                 return Response({'error': 'Question not found.'}, status=status.HTTP_404_NOT_FOUND)
+            if not _can_manage_question(request.user, question):
+                raise PermissionDenied('Bạn không có quyền sửa câu hỏi của giáo viên khác.')
 
             placement = request.data.get('placement', 'stem')
             try:
@@ -295,10 +466,9 @@ class QuestionImageLinkView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
 
     def post(self, request, pk):
-        try:
-            question = Question.objects.get(pk=pk)
-        except Question.DoesNotExist:
-            return Response({'error': 'Question not found.'}, status=status.HTTP_404_NOT_FOUND)
+        question = get_object_or_404(Question, pk=pk)
+        if not _can_manage_question(request.user, question):
+            raise PermissionDenied('Bạn không có quyền sửa câu hỏi của giáo viên khác.')
 
         sha256_hash = request.data.get('sha256')
         if not sha256_hash:
@@ -346,17 +516,16 @@ class QuestionImageUnlinkView(APIView):
 
     def delete(self, request, pk, qimg_id):
         try:
-            qimg = QuestionImage.objects.get(id=qimg_id, question_id=pk)
+            qimg = QuestionImage.objects.select_related('question', 'image').get(id=qimg_id, question_id=pk)
         except QuestionImage.DoesNotExist:
             return Response({'error': 'Question image link not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        image_bank = qimg.image
+        if not _can_manage_question(request.user, qimg.question):
+            raise PermissionDenied('Bạn không có quyền sửa câu hỏi của giáo viên khác.')
+
+        image_id = qimg.image_id
         qimg.delete()
-        
-        if not QuestionImage.objects.filter(image=image_bank).exists():
-            if image_bank.image_file:
-                image_bank.image_file.delete(save=False)
-            image_bank.delete()
+        _delete_orphan_images([image_id])
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -370,20 +539,26 @@ class QuizListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         class_id = self.request.query_params.get('class_id')
-        
+
         # Enforce class_id filter as per requirement: exams only show in their class detail
         if not class_id:
             return Quiz.objects.none()
-            
-        role_name = getattr(user.role, 'name', None)
-        base_qs = Quiz.objects.select_related('classroom', 'classroom__subject', 'created_by').filter(classroom_id=class_id)
-        
-        if role_name == 'admin' or user.is_superuser:
-            return base_qs
-        
-        return base_qs.filter(created_by=user)
+
+        try:
+            class_id = uuid.UUID(str(class_id))
+        except (TypeError, ValueError, AttributeError):
+            return Quiz.objects.none()
+
+        return (
+            _quiz_queryset_for_user(user)
+            .filter(classroom_id=class_id)
+            .prefetch_related('quiz_questions')
+        )
 
     def perform_create(self, serializer):
+        classroom = serializer.validated_data.get('classroom')
+        if not (_is_admin_user(self.request.user) or classroom.teacher_id == self.request.user.id):
+            raise PermissionDenied('Chỉ giáo viên phụ trách lớp mới có thể tạo đề thi.')
         serializer.save(created_by=self.request.user)
 
 
@@ -396,12 +571,12 @@ class QuizDetailView(generics.RetrieveUpdateDestroyAPIView):
         role_name = getattr(user.role, 'name', None)
         base_qs = Quiz.objects.select_related('classroom', 'classroom__subject', 'created_by')
 
-        if role_name == 'admin' or user.is_superuser:
+        if _is_admin_user(user):
             return base_qs
-            
+
         if role_name == 'teacher':
-            return base_qs.filter(created_by=user)
-            
+            return _quiz_queryset_for_user(user)
+
         if role_name == 'student':
             # Students can only see published quizzes in classes they are enrolled in
             return base_qs.filter(
@@ -411,8 +586,8 @@ class QuizDetailView(generics.RetrieveUpdateDestroyAPIView):
                 Q(publish_at__isnull=True) | Q(publish_at__lte=timezone.now())
             ).filter(
                 Q(assigned_to__isnull=True) | Q(assigned_to=user)
-            )
-            
+            ).distinct()
+
         return Quiz.objects.none()
 
 
@@ -421,31 +596,42 @@ class QuizQuestionListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
 
     def get_queryset(self):
-        quiz_id = self.kwargs.get('quiz_id')
+        quiz = _get_owned_quiz(self.request.user, self.kwargs.get('quiz_id'))
         return (
             QuizQuestion.objects
-            .filter(quiz_id=quiz_id)
+            .filter(quiz=quiz)
             .select_related('question', 'quiz')
             .prefetch_related('question__options', 'question__question_images__image', 'question__question_images__uploaded_by')
         )
 
     def perform_create(self, serializer):
-        quiz_id = self.kwargs.get('quiz_id')
-        quiz_question = serializer.save(quiz_id=quiz_id)
+        quiz = _get_owned_quiz(self.request.user, self.kwargs.get('quiz_id'))
+        try:
+            with transaction.atomic():
+                quiz_question = serializer.save(quiz=quiz)
+        except IntegrityError:
+            raise DRFValidationError({'detail': 'Câu hỏi này đã có trong đề.'})
         rebalance_quiz_question_points(quiz_question.quiz)
 
 
 class QuizQuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = (
-        QuizQuestion.objects
-        .select_related('question', 'quiz')
-        .prefetch_related('question__options', 'question__question_images__image', 'question__question_images__uploaded_by')
-    )
     serializer_class = QuizQuestionSerializer
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
 
+    def get_queryset(self):
+        return (
+            QuizQuestion.objects
+            .filter(quiz__in=_quiz_queryset_for_user(self.request.user))
+            .select_related('question', 'quiz')
+            .prefetch_related('question__options', 'question__question_images__image', 'question__question_images__uploaded_by')
+        )
+
     def perform_update(self, serializer):
-        quiz_question = serializer.save()
+        try:
+            with transaction.atomic():
+                quiz_question = serializer.save()
+        except IntegrityError:
+            raise DRFValidationError({'detail': 'Câu hỏi này đã có trong đề.'})
         rebalance_quiz_question_points(quiz_question.quiz)
 
     def perform_destroy(self, instance):
@@ -469,11 +655,16 @@ class StudentQuizListView(generics.ListAPIView):
         if not class_id:
             return Quiz.objects.none()
 
+        try:
+            class_id = uuid.UUID(str(class_id))
+        except (TypeError, ValueError, AttributeError):
+            return Quiz.objects.none()
+
         return Quiz.objects.filter(
             classroom_id=class_id,
             classroom__class_students__student=user, 
             is_published=True
-        ).filter(
+        ).prefetch_related('quiz_questions').filter(
             Q(publish_at__isnull=True) | Q(publish_at__lte=timezone.now())
         ).filter(
             Q(assigned_to__isnull=True) | Q(assigned_to=user)
@@ -498,6 +689,18 @@ class QuizStartView(APIView):
 
         if quiz.assigned_to and quiz.assigned_to != user:
             return Response({'detail': 'Bài kiểm tra này không dành cho bạn.'}, status=status.HTTP_403_FORBIDDEN)
+
+        now = timezone.now()
+        if quiz.publish_at and quiz.publish_at > now:
+            return Response(
+                {'detail': 'Đề thi chưa đến giờ công khai.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if quiz.due_date and quiz.due_date < now:
+            return Response(
+                {'detail': 'Đề thi đã quá hạn nộp bài.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         attempt, created = QuizAttempt.objects.get_or_create(quiz=quiz, student=user)
         if attempt.is_completed:
@@ -526,61 +729,137 @@ class QuizSubmitView(APIView):
     def post(self, request, attempt_id):
         user = request.user
         try:
-            attempt = QuizAttempt.objects.get(id=attempt_id, student=user)
+            attempt = QuizAttempt.objects.select_related('quiz').get(id=attempt_id, student=user)
         except QuizAttempt.DoesNotExist:
             return Response({'detail': 'Lượt thi không tồn tại.'}, status=status.HTTP_404_NOT_FOUND)
 
         if attempt.is_completed:
             return Response({'detail': 'Bài này đã được nộp.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        quiz = attempt.quiz
+        now = timezone.now()
+        if quiz.due_date and now > quiz.due_date:
+            return Response({'detail': 'Đề thi đã quá hạn nộp bài.'}, status=status.HTTP_400_BAD_REQUEST)
+        if attempt.start_time + timedelta(minutes=quiz.duration_minutes) + timedelta(seconds=60) < now:
+            return Response({'detail': 'Đã hết thời gian làm bài.'}, status=status.HTTP_400_BAD_REQUEST)
+
         answers_data = request.data.get('answers', [])
-        total_points = 0
-        earned_points = 0
+        if not isinstance(answers_data, list):
+            return Response({'detail': 'Dữ liệu câu trả lời không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(answers_data) > 500:
+            return Response({'detail': 'Số lượng câu trả lời vượt quá giới hạn.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        answers_by_question = {}
         for answer in answers_data:
-            qq_id = answer.get('quiz_question_id')
-            opt_id = answer.get('selected_option_id')
-            answer_text = answer.get('answer_text')
-
+            if not isinstance(answer, dict):
+                continue
             try:
-                qq = QuizQuestion.objects.get(id=qq_id, quiz=attempt.quiz)
+                qq_id = int(answer.get('quiz_question_id'))
+            except (TypeError, ValueError):
+                continue
+            answers_by_question.setdefault(qq_id, []).append(answer)
+
+        with transaction.atomic():
+            attempt = QuizAttempt.objects.select_for_update().select_related('quiz').get(pk=attempt.pk)
+            if attempt.is_completed:
+                return Response({'detail': 'Bài này đã được nộp.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            attempt.answers.all().delete()
+
+            quiz_questions = list(
+                QuizQuestion.objects
+                .filter(quiz=quiz)
+                .select_related('question')
+                .prefetch_related('question__options')
+            )
+            total_points = sum((qq.points or 0) for qq in quiz_questions)
+            earned_points = 0.0
+
+            for qq in quiz_questions:
+                raw_answers = answers_by_question.get(qq.id, [])
+                if not raw_answers:
+                    continue
+
                 q_type = qq.question.question_type
 
                 if q_type == 'short_answer':
-                    sa = StudentAnswer.objects.create(
-                        attempt=attempt, quiz_question=qq, answer_text=answer_text,
+                    answer_text = next(
+                        (str(a.get('answer_text')).strip() for a in raw_answers if a.get('answer_text') is not None),
+                        None,
                     )
-                    total_points += qq.points
-                    if sa.is_correct():
-                        earned_points += qq.points
+                    if not answer_text:
+                        continue
+                    student_answer = StudentAnswer.objects.create(
+                        attempt=attempt,
+                        quiz_question=qq,
+                        answer_text=answer_text[:500],
+                    )
+                    if student_answer.is_correct():
+                        earned_points += qq.points or 0
+
+                elif q_type == 'true_false':
+                    option_ids = []
+                    for raw in raw_answers:
+                        try:
+                            option_id = int(raw.get('selected_option_id'))
+                        except (TypeError, ValueError):
+                            continue
+                        if option_id not in option_ids:
+                            option_ids.append(option_id)
+
+                    valid_options = [o for o in qq.question.options.all() if o.id in option_ids]
+                    if not valid_options:
+                        continue
+
+                    correct_count = 0
+                    for option in valid_options:
+                        student_answer = StudentAnswer.objects.create(
+                            attempt=attempt,
+                            quiz_question=qq,
+                            selected_option=option,
+                        )
+                        if student_answer.is_correct():
+                            correct_count += 1
+
+                    statement_count = qq.question.options.count() or 1
+                    earned_points += (qq.points or 0) * correct_count / statement_count
+
                 else:
-                    opt = Option.objects.get(id=opt_id, question=qq.question) if opt_id else None
-                    sa = StudentAnswer.objects.create(
-                        attempt=attempt, quiz_question=qq, selected_option=opt,
+                    selected_option = None
+                    for raw in raw_answers:
+                        try:
+                            option_id = int(raw.get('selected_option_id'))
+                        except (TypeError, ValueError):
+                            continue
+                        try:
+                            selected_option = Option.objects.get(
+                                id=option_id,
+                                question_id=qq.question_id,
+                            )
+                            break
+                        except Option.DoesNotExist:
+                            continue
+
+                    if selected_option is None:
+                        continue
+
+                    student_answer = StudentAnswer.objects.create(
+                        attempt=attempt,
+                        quiz_question=qq,
+                        selected_option=selected_option,
                     )
-                    total_points += qq.points
-                    if sa.is_correct():
-                        earned_points += qq.points
+                    if student_answer.is_correct():
+                        earned_points += qq.points or 0
 
-            except (QuizQuestion.DoesNotExist, Option.DoesNotExist):
-                continue
+            final_score = 0
+            if total_points > 0:
+                final_score = min(10.0, round(earned_points / total_points * 10, 2))
 
-        # Câu chưa trả lời vẫn tính vào tổng điểm
-        remaining_qs = attempt.quiz.quiz_questions.exclude(
-            id__in=[a.get('quiz_question_id') for a in answers_data]
-        )
-        for rq in remaining_qs:
-            total_points += rq.points
+            attempt.score = final_score
+            attempt.is_completed = True
+            attempt.end_time = now
+            attempt.save(update_fields=['score', 'is_completed', 'end_time'])
 
-        final_score = (earned_points / total_points * 10) if total_points > 0 else 0
-        final_score = round(final_score, 2)
-
-        attempt.score = final_score
-        attempt.is_completed = True
-        attempt.end_time = timezone.now()
-        attempt.save()
-
-        # Return full review data
         serializer = QuizAttemptReviewSerializer(attempt, context={'request': request})
         return Response(serializer.data)
 
@@ -590,8 +869,6 @@ class QuizSubmitView(APIView):
 
 # ─── ANALYTICS ───────────────────────────────────────────────────────────────
 
-@method_decorator(cache_page(60 * 15), name='dispatch')
-@method_decorator(vary_on_headers('Authorization'), name='dispatch')
 class ClassAnalyticsView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
 
@@ -601,7 +878,10 @@ class ClassAnalyticsView(APIView):
         except Class.DoesNotExist:
             return Response({"error": "Lớp học không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
 
-        quizzes = Quiz.objects.filter(classroom=classroom)
+        if not (_is_admin_user(request.user) or classroom.teacher_id == request.user.id):
+            return Response({"error": "Bạn không có quyền xem thống kê lớp này."}, status=status.HTTP_403_FORBIDDEN)
+
+        quizzes = Quiz.objects.filter(classroom=classroom).exclude(created_by__role__name='student')
         analytics = {
             "class_name": classroom.name,
             "total_quizzes": quizzes.count(),
@@ -613,24 +893,33 @@ class ClassAnalyticsView(APIView):
             if not attempts.exists():
                 continue
 
-            from django.db.models import Avg, Max, Min
             stats = attempts.aggregate(
                 avg_score=Avg('score'), max_score=Max('score'), min_score=Min('score'),
             )
 
             q_stats = []
-            quiz_qs = QuizQuestion.objects.filter(quiz=quiz)
+            quiz_qs = list(
+                QuizQuestion.objects.filter(quiz=quiz).select_related('question')
+            )
+            answers = (
+                StudentAnswer.objects
+                .filter(attempt__quiz=quiz, attempt__is_completed=True)
+                .select_related('quiz_question', 'selected_option', 'quiz_question__question')
+            )
+            answer_stats = {}
+            for answer in answers:
+                entry = answer_stats.setdefault(answer.quiz_question_id, {'total': 0, 'correct': 0})
+                entry['total'] += 1
+                if answer.is_correct():
+                    entry['correct'] += 1
+
             for qq in quiz_qs:
-                total_ans = StudentAnswer.objects.filter(quiz_question=qq, attempt__quiz=quiz).count()
-                if total_ans == 0:
+                entry = answer_stats.get(qq.id)
+                if not entry or entry['total'] == 0:
                     continue
-                correct_ans = sum(
-                    1 for ans in StudentAnswer.objects.filter(quiz_question=qq, attempt__quiz=quiz)
-                    if ans.is_correct()
-                )
-                accuracy = (correct_ans / total_ans) * 100
+                accuracy = (entry['correct'] / entry['total']) * 100
                 q_stats.append({
-                    "question_text": qq.question.text[:100],
+                    "question_text": (qq.question.text or '')[:100],
                     "accuracy": round(accuracy, 1),
                 })
 
@@ -661,6 +950,7 @@ class TeacherAdminProgressAPIView(APIView):
             quizzes = Quiz.objects.filter(classroom__teacher=user)
         else:
             quizzes = Quiz.objects.all()
+        quizzes = quizzes.exclude(created_by__role__name='student')
 
         attempts = QuizAttempt.objects.filter(quiz__in=quizzes, is_completed=True)
         if not attempts.exists():
@@ -698,37 +988,49 @@ class StudentProgressAPIView(APIView):
     def get(self, request):
         target_student_id = request.query_params.get('student_id')
         class_id = request.query_params.get('class_id')
-        
+
         user = request.user
         role_name = getattr(user.role, 'name', None)
-        
-        # Determine the target student
+        is_admin = _is_admin_user(user)
+
+        classroom = None
+        if class_id:
+            try:
+                classroom = Class.objects.get(id=class_id)
+            except (Class.DoesNotExist, ValidationError, ValueError):
+                return Response({"error": "Lớp học không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+
         if role_name == 'student':
             student = user
-        else:
+        elif role_name == 'teacher' or is_admin:
             if not target_student_id:
                 return Response({"error": "student_id is required cho giáo viên/quản trị."}, status=status.HTTP_400_BAD_REQUEST)
             from accounts.models import User
             try:
                 student = User.objects.get(id=target_student_id)
-            except User.DoesNotExist:
+            except (User.DoesNotExist, ValidationError, ValueError):
                 return Response({"error": "Học sinh không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
-                
-            # Optional: check if teacher has access to this student's class
-            if class_id:
-                try:
-                    classroom = Class.objects.get(id=class_id)
-                    is_class_teacher = (role_name == 'teacher' and classroom.teacher == user)
-                    if not (role_name == 'admin' or user.is_superuser or is_class_teacher):
+
+            if not is_admin:
+                if classroom:
+                    if classroom.teacher_id != user.id:
                         return Response({'error': 'Bạn không có quyền xem tiến độ của học sinh lớp này.'}, status=status.HTTP_403_FORBIDDEN)
-                except Class.DoesNotExist:
-                    pass
-        
+                elif not ClassStudent.objects.filter(student=student, classroom__teacher=user).exists():
+                    return Response({'error': 'Bạn không có quyền xem tiến độ của học sinh này.'}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            return Response({'error': 'Bạn không có quyền xem tiến độ học tập.'}, status=status.HTTP_403_FORBIDDEN)
+
         # Query completed attempts
         attempts = QuizAttempt.objects.filter(student=student, is_completed=True)
-        if class_id:
-            attempts = attempts.filter(quiz__classroom_id=class_id)
-            
+        if not is_admin and role_name == 'teacher':
+            attempts = (
+                attempts
+                .filter(quiz__classroom__teacher=user)
+                .exclude(quiz__created_by__role__name='student')
+            )
+        if classroom:
+            attempts = attempts.filter(quiz__classroom=classroom)
+
         attempts = attempts.select_related('quiz').order_by('end_time')
         
         # Build timeline

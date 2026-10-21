@@ -1,7 +1,10 @@
 import os
 import zipfile
 import re
-import xml.etree.ElementTree as ET
+try:
+    from defusedxml import ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 import tempfile
 import subprocess
 import hashlib
@@ -9,10 +12,14 @@ import mimetypes
 import shutil
 from typing import List, Dict, Any, Optional, Tuple
 from django.conf import settings
+from django.core.files.base import ContentFile
 from exams.models import ImageBank
 
 # Thư mục lưu trữ cố định cho ảnh render từ WMF/PNG của ImageBank
 IMAGE_BANK_DIR = os.path.join(settings.MEDIA_ROOT, 'questions', 'images', 'bank')
+MAX_DOCX_FILE_BYTES = 25 * 1024 * 1024
+MAX_DOCX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
 # Namespaces chuẩn của DOCX
 NS = {
@@ -45,8 +52,12 @@ class DocxNativeParser:
         Metadata: bold, underline, highlight được gắn vào từng block text để AI nhận diện đáp án đúng.
         """
         # os.makedirs(IMAGE_BANK_DIR, exist_ok=True)  # Disabled for Vercel Serverless
+        if os.path.getsize(docx_path) > MAX_DOCX_FILE_BYTES:
+            raise ValueError('File DOCX vượt quá dung lượng cho phép.')
 
         with zipfile.ZipFile(docx_path, 'r') as zf:
+            if sum(info.file_size for info in zf.infolist()) > MAX_DOCX_UNCOMPRESSED_BYTES:
+                raise ValueError('Nội dung DOCX giải nén vượt quá giới hạn cho phép.')
             rels_map = cls._build_relationships_map(zf)
             doc_xml = zf.read('word/document.xml')
             root = ET.fromstring(doc_xml)
@@ -262,12 +273,18 @@ class DocxNativeParser:
         """
         try:
             img_bytes = zf.read(zip_path)
+            if len(img_bytes) > MAX_IMAGE_BYTES:
+                print(f"  Skip oversized image: {zip_path}")
+                return None
             ext = os.path.splitext(zip_path)[1].lower()
 
             if ext in ['.wmf', '.emf']:
                 converted_bytes = cls._convert_metafile_to_png(img_bytes, ext)
                 if not converted_bytes:
                     print(f"  Skip {ext.upper()} image (cannot convert on serverless): {zip_path}")
+                    return None
+                if len(converted_bytes) > MAX_IMAGE_BYTES:
+                    print(f"  Skip oversized converted image: {zip_path}")
                     return None
                 img_bytes = converted_bytes
                 ext = '.png'
@@ -298,13 +315,20 @@ class DocxNativeParser:
 
             if needs_upload:
                 file_name = f"{sha256_hash}{ext}"
-                secure_url = upload_to_cloudinary(img_bytes, file_name)
+                cloudinary_res = upload_to_cloudinary(img_bytes, file_name)
+                secure_url = cloudinary_res.get('secure_url') if cloudinary_res else None
                 if secure_url:
                     img_bank.image_file.name = secure_url
                     img_bank.image_url = secure_url
+                    img_bank.cloudinary_public_id = cloudinary_res.get('public_id') or img_bank.cloudinary_public_id
                     img_bank.save()
+                elif settings.DEBUG:
+                    img_bank.image_file.save(f"{sha256_hash}{ext}", ContentFile(img_bytes), save=True)
                 else:
+                    if created:
+                        img_bank.delete()
                     print(f"  Cloudinary upload failed for {zip_path}")
+                    return None
 
             if not created and not img_bank.original_filename:
                 img_bank.original_filename = base_name

@@ -35,10 +35,7 @@ const AIGenerator = {
     },
 
     authHeaders() {
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('access')
-        };
+        return { 'Content-Type': 'application/json' };
     },
 
     bindEvents() {
@@ -91,8 +88,7 @@ const AIGenerator = {
         this.aiParsingInProgress = true;
 
         try {
-            const cloudName = 'dvwkjiz2i';
-            const uploadPreset = 'nvh_upload';
+            const signature = await window.getCloudinarySignature();
             const filesData = [];
             const filesCount = fileInput.files.length;
 
@@ -102,9 +98,11 @@ const AIGenerator = {
 
                 const formData = new FormData();
                 formData.append('file', f);
-                formData.append('upload_preset', uploadPreset);
+                formData.append('api_key', signature.api_key);
+                formData.append('timestamp', signature.timestamp);
+                formData.append('signature', signature.signature);
 
-                const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+                const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${signature.cloud_name}/auto/upload`, {
                     method: 'POST',
                     body: formData
                 });

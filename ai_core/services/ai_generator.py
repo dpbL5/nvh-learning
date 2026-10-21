@@ -648,16 +648,21 @@ class AIGeneratorService:
             if not content_json and q_text:
                 content_json = [{'type': 'text', 'value': q_text}]
 
+            difficulty = q.get('difficulty', 'medium')
+            if difficulty not in ('easy', 'medium', 'hard'):
+                difficulty = 'medium'
+
             item = {
                 'question_type': q_type,
                 'content_json': content_json,
                 'text': q_text,
-                'image': q.get('image', ''),
-                'difficulty': q.get('difficulty', 'medium'),
-                'topic': q.get('topic', ''),
+                'question_text': str(q.get('question_text') or q.get('questionTitle') or '')[:500].strip(),
+                'topic': str(q.get('topic') or '')[:200].strip(),
+                'image': str(q.get('image') or ''),
+                'difficulty': difficulty,
                 'subject': q.get('subject', ''),
-                'context': q.get('context', ''),
-                'correct_answer_text': (
+                'context': str(q.get('context') or ''),
+                'correct_answer_text': str(
                     q.get('correct_answer_text')
                     or q.get('answer')
                     or q.get('result')

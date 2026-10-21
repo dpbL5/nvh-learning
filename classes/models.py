@@ -1,12 +1,13 @@
 import uuid
-import random
+import secrets
 import string
 from django.db import models
 from django.conf import settings
 
 
 def generate_invite_code():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    alphabet = string.ascii_uppercase + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(8))
 
 
 class Subject(models.Model):

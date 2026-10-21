@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const classDetailContent = document.getElementById('classDetailContent');
     if (!classDetailContent) return;
 
-    const token = localStorage.getItem('access');
     const classId = window.CLASS_ID; // Defined in template
     if (!classId) return;
 
@@ -17,12 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let globalAnalyticsData = null;
     let aiChatInitialized = false;
 
-    if (!token) window.location.href = '/login/';
-    function authHeaders() { return {'Content-Type':'application/json','Authorization':'Bearer '+token}; }
+    if (!localStorage.getItem('auth_hint')) window.location.href = '/login/';
+    function authHeaders() { return {'Content-Type':'application/json'}; }
 
     async function init() {
         try {
-            const me = await window.getCurrentUser();
+            const me = await window.getCurrentUser(true);
             if (!me) { window.location.href = '/login/'; return; }
             currentRole = me.role?.name;
             await Promise.all([loadClassDetail(), loadQuizzes(), loadMembers(), loadRAGDocuments()]);
@@ -52,7 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 grid.innerHTML = '<div class="col-12 text-muted text-center small py-2">Chưa có dữ liệu.</div>';
             } else {
                 data.quizzes.forEach(q => {
-                    grid.innerHTML += `<div class="col-md-4"><div class="kpi-card success"><div class="kpi-icon success"><i class="bi bi-award-fill"></i></div><div class="kpi-num">${q.average_score}</div><div class="kpi-label" title="${q.quiz_title}">${q.quiz_title.slice(0,18)}… (${q.total_attempts})</div></div></div>`;
+                    const safeTitle = escapeHtml(q.quiz_title);
+                    grid.innerHTML += `<div class="col-md-4"><div class="kpi-card success"><div class="kpi-icon success"><i class="bi bi-award-fill"></i></div><div class="kpi-num">${q.average_score}</div><div class="kpi-label" title="${safeTitle}">${safeTitle.slice(0,18)}… (${q.total_attempts})</div></div></div>`;
                 });
             }
             loading.style.display = 'none'; display.style.display = 'block';
@@ -86,13 +86,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateInsightGenerateButton(data.can_generate, data.days_remaining);
             } else { 
                 if (res.status === 429) {
-                    textEl.innerHTML = `<div class="alert alert-warning"><i class="bi bi-clock-history me-2"></i>${data.error}</div>`;
+                    textEl.innerHTML = `<div class="alert alert-warning"><i class="bi bi-clock-history me-2"></i>${escapeHtml(data.error)}</div>`;
+                    updateInsightGenerateButton(false, data.days_remaining || 0);
                 } else {
-                    textEl.innerHTML = `<div class="alert alert-danger">Lỗi: ${data.error || "Không thể lấy insight."}</div>`;
-                }
-                if (btn) {
-                    btn.innerHTML = "Thử lại";
-                    btn.disabled = false;
+                    textEl.innerHTML = `<div class="alert alert-danger">Lỗi: ${escapeHtml(data.error || "Không thể lấy insight.")}</div>`;
+                    if (btn) {
+                        btn.innerHTML = "Thử lại";
+                        btn.disabled = false;
+                    }
                 }
             }
         } catch(e) {
@@ -134,8 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const textEl = document.getElementById('aiInsightText');
         if (!textEl) return;
         
-        // Custom simple Markdown parser
-        let html = markdownText
+        // Custom simple Markdown parser (escape first, then apply controlled formatting)
+        let html = escapeHtml(markdownText)
             .replace(/^### (.*$)/gim, '<h5 class="mt-3 mb-2" style="font-weight:700;color:var(--color-primary);">$1</h5>')
             .replace(/^## (.*$)/gim, '<h4 class="mt-3 mb-2" style="font-weight:700;">$1</h4>')
             .replace(/^# (.*$)/gim, '<h3 class="mt-3 mb-2" style="font-weight:800;">$1</h3>')
@@ -226,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i class="bi bi-journal-text"></i>
                         </div>
                         <div style="flex-grow:1;overflow:hidden;">
-                            <h6 style="font-weight:700;margin-bottom:0.25rem;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onclick="openQuiz('${q.id}')">${q.title}</h6>
+                            <h6 style="font-weight:700;margin-bottom:0.25rem;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onclick="openQuiz('${q.id}')">${escapeHtml(q.title)}</h6>
                             <div class="d-flex align-items-center gap-3 flex-wrap" style="font-size:0.78rem;color:var(--color-muted);">
                                 <span><i class="bi bi-clock me-1 text-warning"></i>${q.duration_minutes} phút</span>
                                 <span><i class="bi bi-file-earmark-text me-1 text-info"></i>${q.question_count} câu</span>
@@ -254,11 +255,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             list.innerHTML = data.students.map(s => {
                 const name = s.full_name || s.username;
-                const initial = name.charAt(0).toUpperCase();
+                const safeName = escapeHtml(name);
+                const safeUsername = escapeHtml(s.username);
+                const initial = escapeHtml(name.charAt(0).toUpperCase());
                 
                 let removeBtn = '';
                 if (isTeacher) {
-                    removeBtn = `<button class="btn btn-sm text-danger p-1" title="Xóa học sinh" onclick="removeStudent('${s.id}', '${name}')">
+                    removeBtn = `<button class="btn btn-sm text-danger p-1" title="Xóa học sinh" data-name="${safeName}" onclick="removeStudent('${s.id}', this.dataset.name)">
                         <i class="bi bi-trash"></i>
                     </button>`;
                 }
@@ -266,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<li class="list-group-item d-flex justify-content-between align-items-center gap-2 py-2 px-3 border-0 border-bottom">
                     <div class="d-flex align-items-center gap-3">
                         <div style="width:34px;height:34px;border-radius:50%;background:var(--color-primary-light);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;">${initial}</div>
-                        <div><div style="font-weight:600;font-size:0.875rem;">${name}</div><div style="font-size:0.72rem;color:var(--color-muted);">@${s.username}</div></div>
+                        <div><div style="font-weight:600;font-size:0.875rem;">${safeName}</div><div style="font-size:0.72rem;color:var(--color-muted);">@${safeUsername}</div></div>
                     </div>
                     ${removeBtn}
                 </li>`;
@@ -294,12 +297,12 @@ document.addEventListener('DOMContentLoaded', () => {
             msg.style.display = 'block';
             if (res.ok) {
                 msg.className = 'small mt-2 text-success';
-                msg.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + data.detail;
+                msg.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + escapeHtml(data.detail);
                 input.value = '';
                 await loadMembers();
             } else {
                 msg.className = 'small mt-2 text-danger';
-                msg.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>' + (data.detail || 'Có lỗi xảy ra.');
+                msg.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>' + escapeHtml(data.detail || 'Có lỗi xảy ra.');
             }
         } catch (e) {
             msg.style.display = 'block';
@@ -373,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.status === 429) {
                 const errBubble = document.createElement('div');
                 errBubble.style.cssText = 'background:var(--color-warning-light);border:1px solid var(--color-warning);border-radius:0 var(--radius-md) var(--radius-md) var(--radius-md);padding:0.75rem 1rem;max-width:80%;font-size:0.875rem;color:var(--color-warning-dark);';
-                errBubble.innerHTML = `<i class="bi bi-clock-history me-2"></i>${data.error || 'Hệ thống đang bận, vui lòng thử lại sau.'}`;
+                errBubble.innerHTML = `<i class="bi bi-clock-history me-2"></i>${escapeHtml(data.error || 'Hệ thống đang bận, vui lòng thử lại sau.')}`;
                 win.appendChild(errBubble);
                 win.scrollTop = win.scrollHeight;
                 // Optional: Local countdown for send button
@@ -396,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error(data.error || 'Lỗi khi gọi AI.');
 
             // Parse markdown + newlines
-            let html = data.answer
+            let html = escapeHtml(data.answer)
                     .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
                     .replace(/\*(.*?)\*/g,'<em>$1</em>')
                     .replace(/`([^`]+)`/g,'<code style="background:var(--color-bg);padding:0.1em 0.4em;border-radius:4px;font-size:0.85em;">$1</code>')
@@ -428,11 +431,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const listEl = document.getElementById('ragDocsList');
             if (!docs.length) { listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--color-muted);font-size:0.8rem;">Chưa có tài liệu nào.</div>'; return; }
             listEl.innerHTML = docs.map(d => {
+                const safeTitle = escapeHtml(d.title);
                 const deleteBtn = (currentRole === 'teacher' || currentRole === 'admin') ? `<button style="border:none;background:none;color:var(--color-danger);cursor:pointer;padding:0.25rem;" onclick="deleteRAGDocument(${d.id})" title="Xoá"><i class="bi bi-trash"></i></button>` : '';
                 return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.875rem 1rem;border-bottom:1px solid var(--color-border);">
                     <div style="display:flex;gap:0.75rem;align-items:center;">
                         <i class="bi bi-file-earmark-pdf" style="color:var(--color-danger);font-size:1.2rem;"></i>
-                        <div><div style="font-size:0.82rem;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${d.title}">${d.title}</div><div style="font-size:0.7rem;color:var(--color-muted);">${new Date(d.uploaded_at).toLocaleDateString('vi-VN')}</div></div>
+                        <div><div style="font-size:0.82rem;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${safeTitle}">${safeTitle}</div><div style="font-size:0.7rem;color:var(--color-muted);">${new Date(d.uploaded_at).toLocaleDateString('vi-VN')}</div></div>
                     </div>${deleteBtn}</div>`;
             }).join('');
         } catch(e) {}
@@ -446,14 +450,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             // Bước 1: Upload trực tiếp lên Cloudinary từ thiết bị (bypass lỗi 4.5MB Vercel)
-            const cloudName = 'dvwkjiz2i';
-            const uploadPreset = 'nvh_upload';
+            const signature = await window.getCloudinarySignature();
             const cFormData = new FormData();
             cFormData.append('file', file);
-            cFormData.append('upload_preset', uploadPreset);
+            cFormData.append('api_key', signature.api_key);
+            cFormData.append('timestamp', signature.timestamp);
+            cFormData.append('signature', signature.signature);
             
             // Dùng /raw/upload để hỗ trợ cả pdf, docx, txt (không phải ảnh)
-            const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
+            const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${signature.cloud_name}/raw/upload`, {
                 method: 'POST',
                 body: cFormData
             });
@@ -472,10 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const res = await fetch(`/api/ai/classes/${classId}/documents/upload/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: authHeaders(),
                 body: JSON.stringify(payload)
             });
             
@@ -524,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function escapeHtml(s) { return (s||'').toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+    function escapeHtml(s) { return (s ?? '').toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
 
     document.addEventListener('DOMContentLoaded', () => {
         // Load Insight when tab is clicked

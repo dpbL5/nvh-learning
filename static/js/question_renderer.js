@@ -19,7 +19,7 @@ const QuestionRenderer = {
         
         // 0. Render legacy image if exists
         if (q.image) {
-            html += `<div class="text-center mb-3"><img src="${q.image}" class="img-fluid rounded border shadow-sm" style="max-height: 300px;" alt="Hình ảnh chính"></div>`;
+            html += `<div class="text-center mb-3"><img src="${this._escapeHtml(q.image)}" class="img-fluid rounded border shadow-sm" style="max-height: 300px;" alt="Hình ảnh chính"></div>`;
         }
         
         // 1. Render blocks or text
@@ -46,7 +46,7 @@ const QuestionRenderer = {
             unreferencedImages.forEach(img => {
                 const url = img.image_url || img.image?.image_url;
                 if (url) {
-                    html += `<div class="text-center"><img src="${url}" class="img-fluid rounded border shadow-sm" style="max-height: 400px;" alt="Hình ảnh đính kèm"></div>`;
+                    html += `<div class="text-center"><img src="${this._escapeHtml(url)}" class="img-fluid rounded border shadow-sm" style="max-height: 400px;" alt="Hình ảnh đính kèm"></div>`;
                 }
             });
             html += '</div>';
@@ -157,7 +157,7 @@ const QuestionRenderer = {
             if (b.type === 'image') {
                 const url = b.url || (b.sha256 ? imageMap[b.sha256] : null);
                 if (url) {
-                    return `<div class="text-center my-3"><img src="${url}" class="img-fluid rounded border shadow-sm" style="max-height: 400px;"></div>`;
+                    return `<div class="text-center my-3"><img src="${this._escapeHtml(url)}" class="img-fluid rounded border shadow-sm" style="max-height: 400px;"></div>`;
                 }
             }
             return '';
@@ -179,7 +179,7 @@ const QuestionRenderer = {
             if (b.type === 'image') {
                 const url = b.url || (b.sha256 ? imageMap[b.sha256] : null);
                 if (url) {
-                    return `<div class="text-center my-1"><img src="${url}" class="rounded border shadow-sm mx-1" style="max-height: 120px; width: auto;"></div>`;
+                    return `<div class="text-center my-1"><img src="${this._escapeHtml(url)}" class="rounded border shadow-sm mx-1" style="max-height: 120px; width: auto;"></div>`;
                 }
             }
             return '';

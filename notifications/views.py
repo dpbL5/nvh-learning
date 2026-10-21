@@ -1,3 +1,7 @@
+import logging
+import os
+
+from django.core.management import call_command
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -5,6 +9,8 @@ from rest_framework.pagination import PageNumberPagination
 
 from .models import Notification
 from .serializers import NotificationSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationPagination(PageNumberPagination):
@@ -59,3 +65,20 @@ class MarkAllReadView(APIView):
             recipient=request.user, is_read=False
         ).update(is_read=True)
         return Response({'marked_read': updated})
+
+
+class RunDueNotificationsView(APIView):
+    """Cron endpoint: notify students about quizzes whose publish_at time has passed."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        secret = os.getenv('CRON_SECRET', '')
+        if not secret or request.headers.get('Authorization') != f'Bearer {secret}':
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            call_command('notify_due_quizzes')
+        except Exception:
+            logger.exception('notify_due_quizzes failed')
+            return Response({'detail': 'Cron job failed.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'status': 'ok'})
