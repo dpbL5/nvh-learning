@@ -118,3 +118,48 @@ class AICoreApiTests(APITestCase):
 		payload = {'class_id': str(self.classroom.id), 'topic': 'Chu de A'}
 		res = self.client.post('/api/ai/generate/from-rag/', payload, format='json')
 		self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+	@patch('ai_core.views.AIGeneratorService.ingest_document', side_effect=Exception('boom'))
+	@patch('ai_core.views.delete_from_cloudinary')
+	@patch('requests.get')
+	@patch('ai_core.views.is_allowed_remote_url', return_value=True)
+	def test_upload_document_deletes_cloudinary_asset_when_ingestion_fails(
+		self, _allowed, mock_get, mock_delete, _ingest
+	):
+		mock_get.return_value.iter_content.return_value = [b'test file content']
+		self._auth('teacher_ai', 'TeacherPass123')
+		res = self.client.post(
+			f'/api/ai/classes/{self.classroom.id}/documents/upload/',
+			{
+				'file_url': 'https://res.cloudinary.com/demo/raw/upload/v1234/bai_giang_2.docx',
+				'file_name': 'bai_giang_2.docx',
+			},
+			format='json',
+		)
+		self.assertEqual(res.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+		mock_delete.assert_called_once_with('bai_giang_2.docx', resource_type='raw')
+		self.assertEqual(Document.objects.filter(classroom=self.classroom).count(), 1)
+
+	@patch('ai_core.views.AIGeneratorService.extract_from_file', side_effect=Exception('boom'))
+	@patch('ai_core.views.delete_from_cloudinary')
+	@patch('requests.Session.get')
+	@patch('ai_core.views.is_allowed_remote_url', return_value=True)
+	def test_extract_file_deletes_uploaded_assets_on_failure(
+		self, _allowed, mock_get, mock_delete, _extract
+	):
+		mock_get.return_value.iter_content.return_value = [b'test file content']
+		self._auth('teacher_ai', 'TeacherPass123')
+		res = self.client.post(
+			'/api/ai/generate/extract-file/',
+			{
+				'files': [{
+					'file_url': 'https://res.cloudinary.com/demo/raw/upload/v1234/bai_giang_2.docx',
+					'file_name': 'bai_giang_2.docx',
+					'public_id': 'bai_giang_2.docx',
+					'resource_type': 'raw',
+				}],
+			},
+			format='json',
+		)
+		self.assertEqual(res.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+		mock_delete.assert_called_once_with('bai_giang_2.docx', resource_type='raw')

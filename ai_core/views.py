@@ -34,7 +34,11 @@ from exams.views import (
 )
 from .services.ai_generator import AIGeneratorService
 from .services.ai_provider import get_client
-from .services.cloudinary_service import delete_from_cloudinary, is_allowed_remote_url
+from .services.cloudinary_service import (
+    cloudinary_asset_from_url,
+    delete_from_cloudinary,
+    is_allowed_remote_url,
+)
 from django.utils import timezone
 from datetime import timedelta
 
@@ -289,8 +293,10 @@ class UploadClassDocumentView(APIView):
         if file_url and not is_allowed_remote_url(file_url):
             return Response({"error": "Đường dẫn tài liệu không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
 
+        tmp_file_path = None
+        final_public_id = None
+        final_resource_type = 'raw'
         try:
-            tmp_file_path = None
             if file_obj:
                 ext = os.path.splitext(file_obj.name)[1]
                 with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
@@ -320,7 +326,8 @@ class UploadClassDocumentView(APIView):
                         tmp_file.write(chunk)
                     tmp_file_path = tmp_file.name
                 final_file_url = file_url
-                final_public_id = None
+                final_public_id, derived_resource_type = cloudinary_asset_from_url(file_url)
+                final_resource_type = derived_resource_type or 'raw'
                 final_file_name = file_name
 
             doc_obj = Document.objects.create(
@@ -344,8 +351,7 @@ class UploadClassDocumentView(APIView):
                 # Nếu lỗi trích xuất AI, xoá cả bản ghi DB và file trên Cloudinary
                 logger.exception('Document ingestion failed: %s', ai_err)
                 if doc_obj.cloudinary_public_id:
-                    from .services.cloudinary_service import delete_from_cloudinary
-                    delete_from_cloudinary(doc_obj.cloudinary_public_id, resource_type='raw')
+                    delete_from_cloudinary(doc_obj.cloudinary_public_id, resource_type=final_resource_type)
                 doc_obj.delete()
                 if os.path.exists(tmp_file_path):
                     os.remove(tmp_file_path)
@@ -353,7 +359,9 @@ class UploadClassDocumentView(APIView):
 
         except Exception as e:
             logger.exception('Document upload failed: %s', e)
-            if 'tmp_file_path' in locals() and tmp_file_path and os.path.exists(tmp_file_path):
+            if final_public_id:
+                delete_from_cloudinary(final_public_id, resource_type=final_resource_type)
+            if tmp_file_path and os.path.exists(tmp_file_path):
                 try:
                     os.remove(tmp_file_path)
                 except Exception:
@@ -432,6 +440,14 @@ class AIExtractFromFileView(APIView):
             file_url_to_check = item.get('file_url')
             if file_url_to_check and not is_allowed_remote_url(file_url_to_check):
                 return Response({"error": "Đường dẫn file không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        uploaded_assets = []
+        if files_data and isinstance(files_data, list):
+            for item in files_data:
+                if isinstance(item, dict):
+                    public_id, resource_type = cloudinary_asset_from_url(item.get('file_url'))
+                    if public_id:
+                        uploaded_assets.append((public_id, resource_type or 'image'))
 
         import requests
         import mimetypes
@@ -536,6 +552,8 @@ class AIExtractFromFileView(APIView):
             return Response({"questions": unique_questions, "images": all_images_map})
         except Exception as e:
             logger.exception('AI file extraction failed')
+            for public_id, resource_type in uploaded_assets:
+                delete_from_cloudinary(public_id, resource_type=resource_type)
             msg = str(e)
             if "429" in msg or "quota" in msg.lower():
                 msg = "AI hiện đang bận hoặc hết hạn mức (Quota exceeded)."
