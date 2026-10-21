@@ -108,6 +108,7 @@ CÁCH RA CÂU HỎI:
 - Mỗi câu tập trung vào một yêu cầu đánh giá rõ ràng. Viết gọn như đề thi: cung cấp dữ kiện cần thiết rồi hỏi trực tiếp, không giảng bài trong câu dẫn.
 - Đa dạng nhiệm vụ trong phạm vi chủ đề: nhận diện, phân biệt, sắp xếp thao tác, đọc dữ liệu/đoạn mã, xác định kết quả hoặc đánh giá giải pháp. Chỉ dùng dạng phù hợp với kiến thức của bài, không cố đưa đủ mọi dạng vào một bộ câu hỏi.
 - Khi môn/chủ đề phù hợp, dùng đoạn mã, biểu mẫu, bảng dữ liệu, lược đồ hoặc cấu hình cụ thể làm dữ kiện để học sinh phân tích; không bắt buộc mọi câu đều có một câu chuyện dài. Cung cấp đầy đủ dữ kiện bằng văn bản, không viện dẫn hình/bảng/đoạn mã không được đưa vào câu hỏi.
+- Với câu hỏi có bối cảnh, dựng một tình huống giả định có thể xảy ra trong thực tế: ai đang làm gì, cần đạt mục tiêu nào, gặp sự việc/vướng mắc gì và có những điều kiện nào để xử lí. Chọn chi tiết phục vụ việc ra quyết định; không chỉ mở đầu bằng "Giả sử" rồi liệt kê kiến thức hoặc số liệu khô rời rạc. Chuyển từ tình huống sang các nhận định về cách hiểu, dự đoán hoặc phương án xử lí của chính những người trong đó.
 
 QUY TẮC SỬ DỤNG NGUỒN:
 - Đọc SOURCE trước, kiểm tra từng đoạn có thực sự liên quan đến chủ đề và đủ dữ kiện hay không. Kết quả truy xuất có thể không liên quan.
@@ -185,19 +186,19 @@ VÍ DỤ CẤU TRÚC JSON CHO CÂU HỎI ĐÚNG SAI (không sao chép nội dung
 [
   {{
     "question_type": "true_false",
-    "question_text": "Xây dựng mô hình kiểm tra chất lượng nông sản",
-    "context": "Giả sử một cơ sở đóng gói lưu 8 000 hồ sơ, mỗi hồ sơ ứng với một lô nông sản khác nhau. Hồ sơ gồm mã lô, độ ẩm, khối lượng, tỉ lệ quả bị dập và kết luận của kiểm định viên là đạt hoặc không đạt. Các chỉ số được đo trước khi kiểm định viên kết luận. Cơ sở muốn huấn luyện mô hình dùng các chỉ số này để dự đoán lô hàng mới thuộc một trong hai nhóm đạt hoặc không đạt trước khi kiểm định.",
-    "text": "Có một số nhận xét về việc xây dựng mô hình từ dữ liệu trên như sau:",
+    "question_text": "Thử nghiệm quầy cân trái cây tự nhận diện",
+    "context": "Giả sử trong ngày khai trương siêu thị mini của chị Hương, khách thường phải chờ ở quầy cân vì nhân viên phải chọn tên từng loại quả trên màn hình. Chị Hương nhờ nhóm học sinh thử làm thiết bị dùng camera trên khay cân để đề xuất tên quả, nhân viên kiểm tra rồi mới tính tiền. Nhóm chụp 600 ảnh táo và cam, mỗi ảnh có một quả trên khay cân và được nhân viên ghi tên loại quả tương ứng. Nhóm dự định huấn luyện từ đầu một mô hình phân loại bằng những ảnh này. Trong buổi thử nghiệm, một khách mang quả lê đến cân, trong khi nhóm chưa thu thập ảnh lê để huấn luyện.",
+    "text": "Khi trao đổi về cách thực hiện thử nghiệm tại siêu thị của chị Hương, nhóm đưa ra các nhận định sau:",
     "difficulty": "{difficulty}",
     "topic": "{topic}",
     "subject": "{subject}",
     "options": [
-      {{"text": "Học máy có giám sát phù hợp với nhiệm vụ của cơ sở.", "is_correct": true}},
-      {{"text": "Kết luận đạt hoặc không đạt của kiểm định viên là nhãn cần dự đoán trong mỗi hồ sơ.", "is_correct": true}},
-      {{"text": "Huấn luyện trên cả 8 000 hồ sơ rồi chọn 1 600 hồ sơ trong số đó để đánh giá sẽ đo được khả năng dự đoán trên các lô hàng chưa xuất hiện trong dữ liệu huấn luyện.", "is_correct": false}},
-      {{"text": "Có thể dùng trực tiếp đầu ra của mô hình này để phân loại các lô không đạt thành nhóm do độ ẩm cao hoặc nhóm do quả bị dập.", "is_correct": false}}
+      {{"text": "Nhiệm vụ nhận diện mà chị Hương đề xuất thuộc lĩnh vực thị giác máy tính.", "is_correct": true}},
+      {{"text": "Tên loại quả do nhân viên ghi cho từng ảnh có vai trò là nhãn khi nhóm huấn luyện mô hình.", "is_correct": true}},
+      {{"text": "Mô hình huấn luyện từ đầu bằng bộ ảnh hiện có đã đủ để phân loại quả của vị khách mới vào nhóm lê mà không cần bổ sung loại quả này vào quá trình huấn luyện.", "is_correct": false}},
+      {{"text": "Để đánh giá khả năng nhận diện các ảnh chưa được học, nhóm có thể huấn luyện trên cả 600 ảnh rồi chọn 120 ảnh trong số đó làm bộ kiểm tra.", "is_correct": false}}
     ],
-    "explanation": "a) Nhận biết, Đúng: hồ sơ đã có kết luận đạt/không đạt, phù hợp học có giám sát từ dữ liệu có nhãn. b) Thông hiểu, Đúng: mục tiêu là dự đoán kết luận này; độ ẩm, khối lượng và tỉ lệ quả dập là dữ liệu đầu vào. c) Vận dụng, Sai: 1 600 hồ sơ đánh giá đã nằm trong 8 000 hồ sơ huấn luyện, không phải dữ liệu chưa được học; cần tách dữ liệu đánh giá trước khi huấn luyện. d) Vận dụng, Sai: đầu ra được thiết kế chỉ gồm đạt/không đạt, không phân loại nguyên nhân; nhiệm vụ phân loại nguyên nhân cần nhãn phù hợp và mô hình được huấn luyện cho nhiệm vụ đó. Bối cảnh giả định do AI xây dựng. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
+    "explanation": "a) Nhận biết, Đúng: thiết bị cần nhận diện loại quả từ ảnh camera trên khay cân; đối chiếu với kiến thức về thị giác máy tính. b) Thông hiểu, Đúng: mỗi ảnh đã gắn tên táo hoặc cam; tên này biểu thị kết quả mong muốn, là nhãn để học từ dữ liệu. c) Vận dụng, Sai: nhóm huấn luyện từ đầu với các lớp táo và cam, chưa có lớp lê; không thể coi mô hình đó đã được huấn luyện cho nhiệm vụ phân loại thêm lớp lê, cần bổ sung dữ liệu có nhãn và huấn luyện cho nhiệm vụ mở rộng. d) Vận dụng, Sai: 120 ảnh kiểm tra đã thuộc 600 ảnh huấn luyện, không đáp ứng mục tiêu đánh giá trên ảnh chưa được học; phải tách bộ kiểm tra trước khi huấn luyện. Bối cảnh giả định do AI xây dựng. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
   }}
 ]
 
