@@ -154,6 +154,7 @@ class ExamsApiTests(APITestCase):
 	def test_update_full_accepts_content_json_for_question_and_options(self):
 		self._auth('teacher_exam', 'TeacherPass123')
 		payload = {
+			'subject': self.subject.id,
 			'text': '',
 			'content_json': [{'type': 'text', 'value': 'Noi dung tu block'}],
 			'question_type': 'multiple_choice',
