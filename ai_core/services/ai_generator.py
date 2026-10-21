@@ -104,6 +104,11 @@ PHẠM VI NỘI DUNG:
 - Môn học: {subject}
 - Độ khó: {difficulty}
 
+CÁCH RA CÂU HỎI:
+- Mỗi câu tập trung vào một yêu cầu đánh giá rõ ràng. Viết gọn như đề thi: cung cấp dữ kiện cần thiết rồi hỏi trực tiếp, không giảng bài trong câu dẫn.
+- Đa dạng nhiệm vụ trong phạm vi chủ đề: nhận diện, phân biệt, sắp xếp thao tác, đọc dữ liệu/đoạn mã, xác định kết quả hoặc đánh giá giải pháp. Chỉ dùng dạng phù hợp với kiến thức của bài, không cố đưa đủ mọi dạng vào một bộ câu hỏi.
+- Khi môn/chủ đề phù hợp, dùng đoạn mã, biểu mẫu, bảng dữ liệu, lược đồ hoặc cấu hình cụ thể làm dữ kiện để học sinh phân tích; không bắt buộc mọi câu đều có một câu chuyện dài. Cung cấp đầy đủ dữ kiện bằng văn bản, không viện dẫn hình/bảng/đoạn mã không được đưa vào câu hỏi.
+
 QUY TẮC SỬ DỤNG NGUỒN:
 - Đọc SOURCE trước, kiểm tra từng đoạn có thực sự liên quan đến chủ đề và đủ dữ kiện hay không. Kết quả truy xuất có thể không liên quan.
 - Với kiến thức cần kiểm tra và căn cứ đáp án: nếu SOURCE đủ thông tin thì ưu tiên dùng thông tin đó; nếu không tìm thấy, không liên quan hoặc chỉ đủ một phần, được dùng kiến thức nền đáng tin cậy của AI để bổ sung phần thiếu.
@@ -121,22 +126,25 @@ CẤU TRÚC CHI TIẾT (TUÂN THỦ TUYỆT ĐỐI):
 1. multiple_choice (Trắc nghiệm 4 lựa chọn):
    - Có 4 phương án A, B, C, D. CHỈ DUY NHẤT 1 đáp án đúng (is_correct: true). 3 cái còn lại là sai.
    - TUYỆT ĐỐI KHÔNG ĐƯỢC: tất cả đều đúng hoặc tất cả đều sai.
-   - Các phương án phải đồng nhất về cấu trúc, độ dài và kết thúc bằng dấu chấm (.).
+   - Các phương án cùng loại đối tượng/kết quả, cấu trúc và độ dài tương xứng; không kéo dài tên gọi, con số hoặc đoạn mã chỉ để cân độ dài. Phương án là câu văn kết thúc bằng dấu chấm; giữ nguyên cú pháp và giá trị của phương án là mã/lệnh/dữ liệu.
    - Câu dẫn ngắn, rõ, chỉ đủ dữ kiện; không cho sẵn công thức/quy tắc đang kiểm tra.
    - BẮT BUỘC phần hỏi hướng học sinh chọn một trong bốn phương án: "Phương án nào sau đây nêu đúng ...?", "Phát biểu nào sau đây đúng về ...?", "Nhận định nào dưới đây mô tả đúng ...?" hoặc cách hỏi lựa chọn tương đương phù hợp nội dung.
+   - Chọn câu dẫn tự nhiên theo nhiệm vụ, tránh lặp một khuôn cho cả bộ: "Sau khi thực hiện đoạn chương trình trên, giá trị nào sau đây ...?", "Đoạn mã nào sau đây đáp ứng ...?", "Phương án nào sau đây nêu đúng thứ tự ...?", "Cách xử lí nào sau đây phù hợp ...?". Nếu hỏi phủ định thì làm rõ từ KHÔNG, tránh phủ định kép.
    - KHÔNG xuất câu hỏi mở như "... là gì?", "... có vai trò gì?", "... diễn ra như thế nào?", "Vì sao ...?", "Hãy giải thích ...". Nếu nội dung ban đầu ở dạng này, phải viết lại thành câu hỏi lựa chọn, giữ nguyên kiến thức và mức nhận thức cần kiểm tra.
    - Ví dụ cách viết (không sao chép chủ đề): KHÔNG dùng "Thiết bị thông minh có vai trò gì trong cuộc sống hiện đại?"; PHẢI viết "Phương án nào sau đây nêu đúng vai trò của thiết bị thông minh trong cuộc sống hiện đại?".
    - Trước khi xuất, rà soát `text` của từng câu multiple_choice và viết lại mọi câu hỏi mở còn sót; không áp dụng quy tắc câu dẫn lựa chọn này cho true_false hoặc short_answer.
    - `easy`: Nhận biết kiến thức cốt lõi; `medium`: Thông hiểu qua phân biệt, so sánh hoặc suy luận; `hard`: Vận dụng dữ kiện để tính toán, đánh giá hoặc chọn giải pháp. Không kéo dài câu nhận biết rồi đổi nhãn độ khó.
    - Xác định đáp án đúng và ba sai lầm hợp lí trước khi viết phương án. Nhiễu cùng nhóm khái niệm, phản ánh hiểu sai cụ thể; ít nhất hai nhiễu đủ hấp dẫn với học sinh chưa vững.
+   - Với phương án kỹ thuật, giữ cùng cấu trúc và thay chi tiết quyết định: đơn vị, toán tử, điều kiện, thứ tự, thuộc tính, trường dữ liệu hoặc quan hệ liên kết. Với phương án số, tính nhiễu từ lỗi thực hiện cụ thể, không chọn số ngẫu nhiên. Với tình huống, các phương án cùng là cách xử lí và phải xét ràng buộc của đề.
    - Không để đáp án đúng nổi bật bởi độ dài; không dùng nhiễu vô lí, trùng nhau hoặc từ cực đoan để lộ đáp án. Nếu không có ba nhiễu tốt trong phạm vi bài thì đổi câu dẫn.
    - Phân bố vị trí đáp án đúng cân đối trong số câu MCQ được yêu cầu, tránh chuỗi dễ đoán; khi hoán đổi phải cập nhật lời giải.
 
 2. true_false (Trắc nghiệm Đúng/Sai):
    - `question_text`: Nội dung câu hỏi / Tiêu đề (ngắn gọn, ví dụ: "Về sự ăn mòn kim loại").
    - `context`: BẮT BUỘC là một tình huống thực tế hoặc giả định hợp lí, được phép mở rộng ngoài bối cảnh trong RAG theo quy tắc nguồn ở trên; khoảng 5–10 dòng hoặc ít hơn, chỉ có dữ kiện cần thiết liên quan đến {topic}; không nói hộ đáp án.
+   - Bối cảnh có thể là một nhiệm vụ cụ thể kèm đoạn mã, biểu mẫu, hồ sơ dữ liệu hoặc cấu hình để phân tích. Những dữ kiện này là đối tượng của bài tập, không phải lời giảng hay đáp án; không thêm chuyện kể nếu không giúp xác định yêu cầu và điều kiện.
    - Bối cảnh CHỈ cung cấp dữ kiện tình huống: đối tượng, số liệu, trạng thái, cấu hình, hành động, quan sát hoặc yêu cầu thực tế. KHÔNG cung cấp định nghĩa, công thức, quy tắc, chức năng, quan hệ nguyên nhân–kết quả hay cách giải mà học sinh đang cần nhớ lại để trả lời. Kiến thức đó chỉ được trình bày trong `explanation`.
-   - `text`: Câu chuyển tiếp gắn với bối cảnh, ví dụ "Một số học sinh đưa ra các nhận định sau về [vấn đề cụ thể]:". Không ghi nhãn "Tình huống", không dùng "Hãy xác định Đúng hay Sai".
+   - `text`: Câu chuyển tiếp gắn với đối tượng phân tích, như "Khi tìm hiểu tình huống trên, có những nhận định sau:", "Có một số ý kiến về đoạn mã trên như sau:" hoặc "Có một số nhận xét về việc sử dụng dữ liệu trên như sau:". Không phải lúc nào cũng dựng thêm nhóm học sinh phát biểu; không ghi nhãn "Tình huống", không dùng "Hãy xác định Đúng hay Sai".
    - ĐÚNG 4 phát biểu trong `options`, cùng thuộc một câu hỏi. CẢ BỐN ý, kể cả ý Nhận biết, phải phụ thuộc vào dữ kiện cụ thể trong `context`; bối cảnh không được chỉ là lời dẫn trang trí.
    - Khi soạn từng ý, xác định dữ kiện quyết định trong bối cảnh và kiến thức cần dùng để kết luận. Không hỏi định nghĩa/chân lí chung, không chỉ thêm tên nhân vật hoặc cụm "trong tình huống trên" vào một phát biểu lý thuyết. Ý Nhận biết phải nhận diện đối tượng/đặc điểm qua dữ kiện, không chép lại nguyên văn bối cảnh.
    - KIỂM TRA CHE BỐI CẢNH cho từng ý: chỉ đọc phát biểu và dùng kiến thức môn học thì chưa đủ cơ sở kết luận Đúng/Sai. Nếu vẫn kết luận chắc chắn được thì viết lại ý đó. KIỂM TRA ĐỔI DỮ KIỆN: phải chỉ ra được một thay đổi hợp lí của dữ kiện quyết định trong bối cảnh có thể làm đảo đáp án; nếu không có thì ý hỏi chưa gắn bối cảnh.
@@ -144,6 +152,7 @@ CẤU TRÚC CHI TIẾT (TUÂN THỦ TUYỆT ĐỐI):
    - KIỂM TRA NHỚ LẠI KIẾN THỨC: với từng ý, xác định kiến thức đã học nào học sinh phải tự nhớ lại mà bối cảnh không cung cấp. Nếu chỉ cần đọc, chép hoặc đối chiếu câu chữ trong bối cảnh là trả lời được, phải bỏ phần lý thuyết làm lộ đáp án hoặc viết lại ý hỏi. Mỗi ý bắt buộc cần cả kiến thức đã học lẫn dữ kiện bối cảnh.
    - `explanation` của TỪNG ý phải nêu dữ kiện cụ thể đã dùng, kiến thức/quan hệ áp dụng và kết luận Đúng/Sai; không chỉ nhắc lại lý thuyết chung. Tự sửa mọi ý không vượt qua hai phép kiểm tra trên trước khi xuất.
    - Mỗi câu đủ Nhận biết, Thông hiểu, Vận dụng; ưu tiên thứ tự NB, TH, VD, VD. `difficulty` vẫn giữ giá trị được yêu cầu; ghi mức nhận thức và giải thích Đúng/Sai từng ý trong `explanation`.
+   - Bốn ý khai thác các khía cạnh của cùng dữ kiện: nhận diện thành phần, giải thích hoạt động/quan hệ, xét một đầu vào hoặc phương án cụ thể, rồi đánh giá một thay đổi/giải pháp. Mỗi ý có thể chấm độc lập, không lấy kết luận của ý trước làm giả thiết cho ý sau. Có thể thêm điều kiện giả định ngay trong một ý; điều kiện đó chỉ áp dụng cho ý ấy.
    - Nhận biết: nhớ khái niệm/đặc điểm để nhận diện đối tượng trong tình huống. Thông hiểu: dùng kiến thức đã học để giải thích hoặc suy luận từ dữ kiện. Vận dụng: kết hợp dữ kiện với kiến thức đã học để đánh giá cách xử lí, dự đoán kết quả hoặc lựa chọn giải pháp; không chỉ đổi nhãn mức nhận thức cho một ý hỏi đọc hiểu.
    - PHẢI TỒN TẠI ÍT NHẤT 1 phát biểu đúng (is_correct: true) và ít nhất 1 phát biểu sai.
    - TUYỆT ĐỐI KHÔNG ĐƯỢC: tất cả đều đúng hoặc tất cả đều sai.
@@ -176,23 +185,24 @@ VÍ DỤ CẤU TRÚC JSON CHO CÂU HỎI ĐÚNG SAI (không sao chép nội dung
 [
   {{
     "question_type": "true_false",
-    "question_text": "Về mạng máy tính trong nhà trường",
-    "context": "Giả sử phòng tin học có 30 máy tính để bàn không có Wi-Fi, nối cáp qua một switch đặt trong phòng. Buổi học trước, các máy học sinh đã mở được tệp từ máy giáo viên; cấu hình và quyền truy cập được giữ nguyên. Giáo viên đặt tệp bài tập vào thư mục chia sẻ trên máy của mình; các máy học sinh được quyền đọc, chưa được quyền ghi. Trong giờ học, đường truyền Internet bị gián đoạn nhưng switch và các máy vẫn hoạt động bình thường. Cáp mạng của máy An bị rút khỏi switch, còn máy Bình vẫn nối với switch. Giáo viên cần phát bài ngay cho các máy còn kết nối và cho phép Bình nộp tệp vào thư mục đó.",
-    "text": "Một số học sinh đưa ra các nhận định sau về cách chia sẻ tệp trong phòng tin học:",
+    "question_text": "Xây dựng mô hình kiểm tra chất lượng nông sản",
+    "context": "Giả sử một cơ sở đóng gói lưu 8 000 hồ sơ, mỗi hồ sơ ứng với một lô nông sản khác nhau. Hồ sơ gồm mã lô, độ ẩm, khối lượng, tỉ lệ quả bị dập và kết luận của kiểm định viên là đạt hoặc không đạt. Các chỉ số được đo trước khi kiểm định viên kết luận. Cơ sở muốn huấn luyện mô hình dùng các chỉ số này để dự đoán lô hàng mới thuộc một trong hai nhóm đạt hoặc không đạt trước khi kiểm định.",
+    "text": "Có một số nhận xét về việc xây dựng mô hình từ dữ liệu trên như sau:",
     "difficulty": "{difficulty}",
     "topic": "{topic}",
     "subject": "{subject}",
     "options": [
-      {{"text": "Kết nối hiện tại giữa máy giáo viên và máy Bình thuộc mạng LAN.", "is_correct": true}},
-      {{"text": "Với kết nối hiện tại, máy An có thể mở tệp bài tập trong thư mục chia sẻ của giáo viên.", "is_correct": false}},
-      {{"text": "Với quyền đang được cấp, Bình có thể nộp bài bằng cách sao chép tệp từ máy mình vào thư mục chia sẻ của giáo viên.", "is_correct": false}},
-      {{"text": "Giáo viên có thể phát bài ngay qua thư mục chia sẻ cho các máy còn nối switch, đồng thời cấp quyền ghi cho Bình để em nộp tệp vào đó.", "is_correct": true}}
+      {{"text": "Học máy có giám sát phù hợp với nhiệm vụ của cơ sở.", "is_correct": true}},
+      {{"text": "Kết luận đạt hoặc không đạt của kiểm định viên là nhãn cần dự đoán trong mỗi hồ sơ.", "is_correct": true}},
+      {{"text": "Huấn luyện trên cả 8 000 hồ sơ rồi chọn 1 600 hồ sơ trong số đó để đánh giá sẽ đo được khả năng dự đoán trên các lô hàng chưa xuất hiện trong dữ liệu huấn luyện.", "is_correct": false}},
+      {{"text": "Có thể dùng trực tiếp đầu ra của mô hình này để phân loại các lô không đạt thành nhóm do độ ẩm cao hoặc nhóm do quả bị dập.", "is_correct": false}}
     ],
-    "explanation": "a) Nhận biết, Đúng: các máy nối qua switch trong cùng phòng, trao đổi dữ liệu nội bộ, nên thuộc mạng LAN. b) Thông hiểu, Sai: máy An bị rút cáp và không có Wi-Fi nên mất kết nối để mở tệp từ máy giáo viên. c) Vận dụng, Sai: Bình được quyền đọc nhưng chưa được quyền ghi; sao chép tệp vào thư mục cần quyền ghi. d) Vận dụng, Đúng: switch và các máy còn nối cáp vẫn hoạt động, cấu hình cho phép trao đổi nội bộ nên việc phát bài không cần Internet; Bình vẫn nối switch và có thể nộp vào thư mục khi được cấp quyền ghi. Bối cảnh giả định do AI xây dựng. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
+    "explanation": "a) Nhận biết, Đúng: hồ sơ đã có kết luận đạt/không đạt, phù hợp học có giám sát từ dữ liệu có nhãn. b) Thông hiểu, Đúng: mục tiêu là dự đoán kết luận này; độ ẩm, khối lượng và tỉ lệ quả dập là dữ liệu đầu vào. c) Vận dụng, Sai: 1 600 hồ sơ đánh giá đã nằm trong 8 000 hồ sơ huấn luyện, không phải dữ liệu chưa được học; cần tách dữ liệu đánh giá trước khi huấn luyện. d) Vận dụng, Sai: đầu ra được thiết kế chỉ gồm đạt/không đạt, không phân loại nguyên nhân; nhiệm vụ phân loại nguyên nhân cần nhãn phù hợp và mô hình được huấn luyện cho nhiệm vụ đó. Bối cảnh giả định do AI xây dựng. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
   }}
 ]
 
 TỰ RÀ SOÁT: Đúng số lượng, loại câu, độ khó và phạm vi; MCQ/Đúng-Sai đủ bốn phương án/phát biểu, đáp án và lời giải khớp nhau, không lặp câu. Nếu chưa đạt thì sửa trước khi xuất.
+Với dữ liệu/mã/lệnh: tự tính, mô phỏng hoặc đối chiếu từng phương án và từng ý; kiểm tra chỉ số, đơn vị, điều kiện, tên trường/thuộc tính và đầu ra. Đoạn mã trong phương án hoặc nhận định có thể cố ý sai để kiểm tra học sinh, nhưng lời giải phải chỉ đúng lỗi; không vô tình làm sai dữ kiện đầu vào hoặc để nhiều đáp án MCQ cùng hợp lệ.
 YÊU CẦU: Trả về DUY NHẤT một JSON array, không markdown hay lời dẫn.
 """
 

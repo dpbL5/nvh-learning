@@ -66,7 +66,9 @@ Switch là thiết bị có chức năng kết nối các thiết bị mạng tr
 
 **Phần dẫn (bối cảnh):**
 - Đưa ra một tình huống thực tiễn hoặc giả định phù hợp thực tiễn.
+- Có thể tự xây dựng bối cảnh ngoài RAG từ kiến thức nền, ngay cả khi RAG đủ thông tin; kiến thức cần kiểm tra vẫn đúng chủ đề/YCCĐ, không đòi thêm chuyên môn ngoài bài. Ghi rõ tình huống giả định, không gán dữ kiện tự dựng cho tài liệu.
 - Ngắn gọn: khoảng 5–10 dòng hoặc ít hơn.
+- Chỉ cung cấp dữ kiện tình huống (số liệu, trạng thái, cấu hình, hành động, quan sát); không cung cấp định nghĩa, công thức, quy tắc hoặc cách giải đang kiểm tra. Học sinh phải tự nhớ lại kiến thức đã học để áp dụng.
 - Phần dẫn và phần câu hỏi phải có câu liên kết — học sinh **bắt buộc phải dựa vào bối cảnh** để trả lời đúng. Nếu bỏ bối cảnh đi mà học sinh vẫn trả lời được thì ý hỏi **không đạt yêu cầu**.
 
 **Phần câu hỏi:**
@@ -74,6 +76,7 @@ Switch là thiết bị có chức năng kết nối các thiết bị mạng tr
 - 4 ý phải thể hiện đủ **3 mức nhận thức**: Nhận biết — Thông hiểu — Vận dụng.
 - Cả bốn ý, kể cả Nhận biết, phải dùng dữ kiện quyết định trong bối cảnh. Không dùng phát biểu lý thuyết chung rồi thêm tên nhân vật hoặc cụm “trong tình huống trên”.
 - Tự kiểm tra từng ý: **che bối cảnh** thì chưa đủ cơ sở kết luận; **đổi dữ kiện quyết định** một cách hợp lí thì có thể đảo đáp án. Nếu không đạt, viết lại ý hỏi.
+- Mỗi ý phải cần cả **kiến thức đã học** và **dữ kiện bối cảnh**. Nếu chỉ đọc hoặc đối chiếu câu chữ trong bối cảnh là trả lời được thì viết lại; kiến thức dùng để giải thích chỉ trình bày trong lời giải.
 - Bối cảnh phải đủ dữ kiện, không nói sẵn kết luận; không đánh dấu Sai chỉ vì thông tin không được đề cập. Lời giải từng ý phải nêu dữ kiện đã dùng và kiến thức áp dụng để kết luận.
 
 ---
@@ -136,3 +139,12 @@ d) Hiện nay giáo viên và học sinh có thể đăng ký mượn thiết b�
 | Mức nhận thức | Không yêu cầu phân tầng | Phải đủ 3 mức: Nhận biết / Thông hiểu / Vận dụng |
 | Lời giải | Giải thích đáp án đúng | Giải thích từng ý kèm mức nhận thức |
 | Đáp án cuối | `**Chọn [A/B/C/D]**` | Ghi rõ Đúng/Sai cho từng ý |
+
+## 4. Cách viết tham khảo từ đề Tin học mã 0501
+
+Đối chiếu tệp `Đề_Tin học_0501.pdf` do người dùng cung cấp (4 trang). Áp dụng cách đặt nhiệm vụ và xây dựng phương án, không sao chép câu hỏi, số lượng câu hay phần thi tự chọn.
+
+- **MCQ, trang 1–3:** Câu dẫn gọn, hỏi một yêu cầu cụ thể; đa dạng dạng xác định kết quả chương trình, chọn đoạn mã, sắp xếp thao tác và lựa chọn cách xử lí. Phương án kỹ thuật thường khác nhau ở chi tiết then chốt như đơn vị, thuộc tính, điều kiện hoặc thứ tự. Giữ nguyên cú pháp mã/lệnh, không thêm dấu chấm vào mã chỉ để đồng nhất hình thức.
+- **Đúng/Sai, trang 3–4:** Bối cảnh có thể gồm nhiệm vụ kèm đoạn mã HTML, chương trình, hồ sơ dữ liệu hoặc lược đồ cơ sở dữ liệu. Câu liên kết gọi đúng đối tượng đang phân tích; bốn ý xét thành phần, ý nghĩa, kết quả và phương án thay đổi/xử lí. Mỗi ý được đánh giá độc lập, có thể đặt giả thiết riêng.
+- **Áp dụng vào hệ thống:** Giữ yêu cầu mỗi ý cần cả dữ kiện bối cảnh và kiến thức đã học, đủ ba mức nhận thức. Bối cảnh ngoài RAG vẫn được phép. Ví dụ trong prompt được viết mới về kiểm tra nông sản, tham khảo dạng bài dữ liệu học máy ở trang 4.
+- **Tự rà soát:** Tính hoặc mô phỏng kết quả, đối chiếu tên trường/thuộc tính, điều kiện, đơn vị và từng đáp án. Sai sót trong một phương án phải có chủ đích và được giải thích; không để lỗi vô ý trong dữ kiện làm câu hỏi mơ hồ.
