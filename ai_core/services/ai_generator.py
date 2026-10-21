@@ -108,7 +108,7 @@ CÁCH RA CÂU HỎI:
 - Mỗi câu tập trung vào một yêu cầu đánh giá rõ ràng. Viết gọn như đề thi: cung cấp dữ kiện cần thiết rồi hỏi trực tiếp, không giảng bài trong câu dẫn.
 - Đa dạng nhiệm vụ trong phạm vi chủ đề: nhận diện, phân biệt, sắp xếp thao tác, đọc dữ liệu/đoạn mã, xác định kết quả hoặc đánh giá giải pháp. Chỉ dùng dạng phù hợp với kiến thức của bài, không cố đưa đủ mọi dạng vào một bộ câu hỏi.
 - Khi môn/chủ đề phù hợp, dùng đoạn mã, biểu mẫu, bảng dữ liệu, lược đồ hoặc cấu hình cụ thể làm dữ kiện để học sinh phân tích; không bắt buộc mọi câu đều có một câu chuyện dài. Cung cấp đầy đủ dữ kiện bằng văn bản, không viện dẫn hình/bảng/đoạn mã không được đưa vào câu hỏi.
-- Với câu hỏi có bối cảnh, dựng một tình huống giả định có thể xảy ra trong thực tế: ai đang làm gì, cần đạt mục tiêu nào, gặp sự việc/vướng mắc gì và có những điều kiện nào để xử lí. Chọn chi tiết phục vụ việc ra quyết định; không chỉ mở đầu bằng "Giả sử" rồi liệt kê kiến thức hoặc số liệu khô rời rạc. Chuyển từ tình huống sang các nhận định về cách hiểu, dự đoán hoặc phương án xử lí của chính những người trong đó.
+- Với câu hỏi có bối cảnh, viết một đoạn văn tường thuật khách quan như đề thi, theo mạch: đơn vị/con người và hoạt động đang diễn ra → hiện trạng, dữ liệu hoặc điều kiện cụ thể → nhu cầu, mục tiêu hoặc phương án dự định triển khai. Các câu liên kết tự nhiên, thống nhất chủ thể; mỗi chi tiết phục vụ các nhận định phía sau. Không bắt buộc thêm đối thoại, biến cố bất ngờ, nhân vật phụ hoặc một sự cố chỉ để tạo cốt truyện.
 
 QUY TẮC SỬ DỤNG NGUỒN:
 - Đọc SOURCE trước, kiểm tra từng đoạn có thực sự liên quan đến chủ đề và đủ dữ kiện hay không. Kết quả truy xuất có thể không liên quan.
@@ -186,19 +186,19 @@ VÍ DỤ CẤU TRÚC JSON CHO CÂU HỎI ĐÚNG SAI (không sao chép nội dung
 [
   {{
     "question_type": "true_false",
-    "question_text": "Thử nghiệm quầy cân trái cây tự nhận diện",
-    "context": "Giả sử trong ngày khai trương siêu thị mini của chị Hương, khách thường phải chờ ở quầy cân vì nhân viên phải chọn tên từng loại quả trên màn hình. Chị Hương nhờ nhóm học sinh thử làm thiết bị dùng camera trên khay cân để đề xuất tên quả, nhân viên kiểm tra rồi mới tính tiền. Nhóm chụp 600 ảnh táo và cam, mỗi ảnh có một quả trên khay cân và được nhân viên ghi tên loại quả tương ứng. Nhóm dự định huấn luyện từ đầu một mô hình phân loại bằng những ảnh này. Trong buổi thử nghiệm, một khách mang quả lê đến cân, trong khi nhóm chưa thu thập ảnh lê để huấn luyện.",
-    "text": "Khi trao đổi về cách thực hiện thử nghiệm tại siêu thị của chị Hương, nhóm đưa ra các nhận định sau:",
+    "question_text": "Ứng dụng học máy tại trung tâm bảo hành",
+    "context": "Giả sử một trung tâm bảo hành điện máy lưu trữ 12 000 hồ sơ tiếp nhận máy giặt trong ba năm gần nhất. Mỗi hồ sơ gồm mã tiếp nhận, dòng máy, số năm sử dụng, hiện tượng lỗi khách hàng mô tả, kết quả kiểm tra và kết luận cần thay linh kiện hoặc không cần thay linh kiện của kỹ thuật viên. Ban quản lí muốn sử dụng các hồ sơ này để xây dựng mô hình học máy, hỗ trợ dự đoán máy giặt mới tiếp nhận có cần thay linh kiện hay không dựa trên thông tin máy và kết quả kiểm tra trước khi kỹ thuật viên đưa ra kết luận.",
+    "text": "Khi xây dựng hệ thống hỗ trợ bảo hành nói trên, có một số nhận định như sau:",
     "difficulty": "{difficulty}",
     "topic": "{topic}",
     "subject": "{subject}",
     "options": [
-      {{"text": "Nhiệm vụ nhận diện mà chị Hương đề xuất thuộc lĩnh vực thị giác máy tính.", "is_correct": true}},
-      {{"text": "Tên loại quả do nhân viên ghi cho từng ảnh có vai trò là nhãn khi nhóm huấn luyện mô hình.", "is_correct": true}},
-      {{"text": "Mô hình huấn luyện từ đầu bằng bộ ảnh hiện có đã đủ để phân loại quả của vị khách mới vào nhóm lê mà không cần bổ sung loại quả này vào quá trình huấn luyện.", "is_correct": false}},
-      {{"text": "Để đánh giá khả năng nhận diện các ảnh chưa được học, nhóm có thể huấn luyện trên cả 600 ảnh rồi chọn 120 ảnh trong số đó làm bộ kiểm tra.", "is_correct": false}}
+      {{"text": "Trung tâm có thể sử dụng học máy có giám sát để xây dựng mô hình theo mục tiêu đã nêu.", "is_correct": true}},
+      {{"text": "Kết luận cần thay hoặc không cần thay linh kiện của kỹ thuật viên là nhãn của mỗi hồ sơ khi huấn luyện mô hình này.", "is_correct": true}},
+      {{"text": "Dùng toàn bộ 12 000 hồ sơ để huấn luyện rồi lấy 2 400 hồ sơ trong số đó làm bộ kiểm tra là phương án đánh giá trên dữ liệu chưa được dùng để học.", "is_correct": false}},
+      {{"text": "Khi mô hình dự đoán một máy cần thay linh kiện, có thể dùng trực tiếp kết quả dự đoán đó để xác định linh kiện cần thay là động cơ hay bộ điều khiển.", "is_correct": false}}
     ],
-    "explanation": "a) Nhận biết, Đúng: thiết bị cần nhận diện loại quả từ ảnh camera trên khay cân; đối chiếu với kiến thức về thị giác máy tính. b) Thông hiểu, Đúng: mỗi ảnh đã gắn tên táo hoặc cam; tên này biểu thị kết quả mong muốn, là nhãn để học từ dữ liệu. c) Vận dụng, Sai: nhóm huấn luyện từ đầu với các lớp táo và cam, chưa có lớp lê; không thể coi mô hình đó đã được huấn luyện cho nhiệm vụ phân loại thêm lớp lê, cần bổ sung dữ liệu có nhãn và huấn luyện cho nhiệm vụ mở rộng. d) Vận dụng, Sai: 120 ảnh kiểm tra đã thuộc 600 ảnh huấn luyện, không đáp ứng mục tiêu đánh giá trên ảnh chưa được học; phải tách bộ kiểm tra trước khi huấn luyện. Bối cảnh giả định do AI xây dựng. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
+    "explanation": "a) Nhận biết, Đúng: các hồ sơ có thông tin máy, kết quả kiểm tra và kết luận của kỹ thuật viên; đây là dữ liệu có nhãn, phù hợp học có giám sát. b) Thông hiểu, Đúng: mục tiêu là dự đoán có cần thay linh kiện hay không; kết luận này là đầu ra cần học, còn thông tin máy và kết quả kiểm tra là đầu vào. c) Vận dụng, Sai: 2 400 hồ sơ đã nằm trong 12 000 hồ sơ huấn luyện, không đáp ứng yêu cầu kiểm tra trên dữ liệu chưa được học; cần tách dữ liệu kiểm tra trước khi huấn luyện. d) Vận dụng, Sai: mô hình được xây dựng để dự đoán cần thay/không cần thay linh kiện, không dự đoán tên linh kiện; muốn phân loại linh kiện cần dữ liệu có nhãn tương ứng và mô hình cho nhiệm vụ đó. Bối cảnh giả định do AI xây dựng. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
   }}
 ]
 
