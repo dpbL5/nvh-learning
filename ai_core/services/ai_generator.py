@@ -133,7 +133,11 @@ CẤU TRÚC CHI TIẾT (TUÂN THỦ TUYỆT ĐỐI):
    - `question_text`: Nội dung câu hỏi / Tiêu đề (ngắn gọn, ví dụ: "Về sự ăn mòn kim loại").
    - `context`: BẮT BUỘC là một tình huống thực tế hoặc giả định hợp lí, khoảng 5–10 dòng hoặc ít hơn, chỉ có dữ kiện cần thiết liên quan đến {topic}; không nói hộ đáp án.
    - `text`: Câu chuyển tiếp gắn với bối cảnh, ví dụ "Một số học sinh đưa ra các nhận định sau về [vấn đề cụ thể]:". Không ghi nhãn "Tình huống", không dùng "Hãy xác định Đúng hay Sai".
-   - ĐÚNG 4 phát biểu trong `options`, cùng thuộc một câu hỏi. Mỗi ý phải khai thác dữ kiện bối cảnh; nếu bỏ bối cảnh mà vẫn trả lời bằng ghi nhớ thì viết lại.
+   - ĐÚNG 4 phát biểu trong `options`, cùng thuộc một câu hỏi. CẢ BỐN ý, kể cả ý Nhận biết, phải phụ thuộc vào dữ kiện cụ thể trong `context`; bối cảnh không được chỉ là lời dẫn trang trí.
+   - Khi soạn từng ý, xác định dữ kiện quyết định trong bối cảnh và kiến thức cần dùng để kết luận. Không hỏi định nghĩa/chân lí chung, không chỉ thêm tên nhân vật hoặc cụm "trong tình huống trên" vào một phát biểu lý thuyết. Ý Nhận biết phải nhận diện đối tượng/đặc điểm qua dữ kiện, không chép lại nguyên văn bối cảnh.
+   - KIỂM TRA CHE BỐI CẢNH cho từng ý: chỉ đọc phát biểu và dùng kiến thức môn học thì chưa đủ cơ sở kết luận Đúng/Sai. Nếu vẫn kết luận chắc chắn được thì viết lại ý đó. KIỂM TRA ĐỔI DỮ KIỆN: phải chỉ ra được một thay đổi hợp lí của dữ kiện quyết định trong bối cảnh có thể làm đảo đáp án; nếu không có thì ý hỏi chưa gắn bối cảnh.
+   - Bối cảnh phải cung cấp đủ dữ kiện để kết luận rõ ràng cho cả bốn ý, nhưng không nói sẵn kết luận; không lấy việc "không được đề cập" làm căn cứ đánh dấu Sai. Các ý khai thác các khía cạnh khác nhau của tình huống, không lặp một suy luận bốn lần.
+   - `explanation` của TỪNG ý phải nêu dữ kiện cụ thể đã dùng, kiến thức/quan hệ áp dụng và kết luận Đúng/Sai; không chỉ nhắc lại lý thuyết chung. Tự sửa mọi ý không vượt qua hai phép kiểm tra trên trước khi xuất.
    - Mỗi câu đủ Nhận biết, Thông hiểu, Vận dụng; ưu tiên thứ tự NB, TH, VD, VD. `difficulty` vẫn giữ giá trị được yêu cầu; ghi mức nhận thức và giải thích Đúng/Sai từng ý trong `explanation`.
    - PHẢI TỒN TẠI ÍT NHẤT 1 phát biểu đúng (is_correct: true) và ít nhất 1 phát biểu sai.
    - TUYỆT ĐỐI KHÔNG ĐƯỢC: tất cả đều đúng hoặc tất cả đều sai.
@@ -167,18 +171,18 @@ VÍ DỤ CẤU TRÚC JSON CHO CÂU HỎI ĐÚNG SAI (không sao chép nội dung
   {{
     "question_type": "true_false",
     "question_text": "Về mạng máy tính trong nhà trường",
-    "context": "Phòng tin học có 30 máy tính nối bằng cáp qua switch, cùng một mạng LAN có địa chỉ IP riêng hợp lệ. Đường truyền Internet bị gián đoạn, nhưng mạng LAN vẫn hoạt động. Giáo viên cần gửi tệp từ máy của mình cho các máy học sinh; các máy đã bật chia sẻ tệp và có quyền truy cập. Một học sinh đề xuất dùng dịch vụ lưu trữ đám mây cần Internet để gửi tệp.",
+    "context": "Phòng tin học có 30 máy tính để bàn không có Wi-Fi, nối cáp qua switch trong cùng phòng và có cấu hình địa chỉ IP hợp lệ để trao đổi dữ liệu nội bộ. Giáo viên đặt tệp bài tập vào thư mục chia sẻ trên máy của mình; các máy học sinh được quyền đọc, chưa được quyền ghi. Trong giờ học, đường truyền Internet bị gián đoạn nhưng switch và các máy vẫn hoạt động bình thường. Cáp mạng của máy An bị rút khỏi switch, còn máy Bình vẫn nối với switch. Giáo viên cần phát bài ngay cho các máy còn kết nối và cho phép Bình nộp tệp vào thư mục đó.",
     "text": "Một số học sinh đưa ra các nhận định sau về cách chia sẻ tệp trong phòng tin học:",
     "difficulty": "{difficulty}",
     "topic": "{topic}",
     "subject": "{subject}",
     "options": [
-      {{"text": "Các máy tính được mô tả đang kết nối trong một mạng LAN.", "is_correct": true}},
-      {{"text": "Sự cố đường truyền Internet khiến việc chia sẻ tệp qua mạng LAN bị gián đoạn.", "is_correct": false}},
-      {{"text": "Giáo viên có thể dùng thư mục chia sẻ trong mạng LAN để gửi tệp khi Internet bị gián đoạn.", "is_correct": true}},
-      {{"text": "Đề xuất dùng dịch vụ đám mây cần Internet đáp ứng được yêu cầu gửi tệp ngay trong lúc sự cố.", "is_correct": false}}
+      {{"text": "Kết nối hiện tại giữa máy giáo viên và máy Bình thuộc mạng LAN.", "is_correct": true}},
+      {{"text": "Với kết nối hiện tại, máy An có thể mở tệp bài tập trong thư mục chia sẻ của giáo viên.", "is_correct": false}},
+      {{"text": "Với quyền đang được cấp, Bình có thể nộp bài bằng cách sao chép tệp từ máy mình vào thư mục chia sẻ của giáo viên.", "is_correct": false}},
+      {{"text": "Giáo viên có thể phát bài ngay qua thư mục chia sẻ cho các máy còn nối switch, đồng thời cấp quyền ghi cho Bình để em nộp tệp vào đó.", "is_correct": true}}
     ],
-    "explanation": "a) Nhận biết, Đúng: các máy cùng mạng LAN. b) Thông hiểu, Sai: mạng LAN vẫn hoạt động khi mất Internet. c) Vận dụng, Đúng: chia sẻ tệp nội bộ phù hợp với điều kiện đã cho. d) Vận dụng, Sai: dịch vụ đám mây cần đường truyền Internet đang bị gián đoạn. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
+    "explanation": "a) Nhận biết, Đúng: các máy nối qua switch trong cùng phòng, trao đổi dữ liệu nội bộ, nên thuộc mạng LAN. b) Thông hiểu, Sai: máy An bị rút cáp và không có Wi-Fi nên mất kết nối để mở tệp từ máy giáo viên. c) Vận dụng, Sai: Bình được quyền đọc nhưng chưa được quyền ghi; sao chép tệp vào thư mục cần quyền ghi. d) Vận dụng, Đúng: switch và các máy còn nối cáp vẫn hoạt động, cấu hình cho phép trao đổi nội bộ nên việc phát bài không cần Internet; Bình vẫn nối switch và có thể nộp vào thư mục khi được cấp quyền ghi. Nguồn: Kiến thức nền bổ sung ngoài tài liệu lớp học."
   }}
 ]
 

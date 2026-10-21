@@ -72,6 +72,9 @@ Switch là thiết bị có chức năng kết nối các thiết bị mạng tr
 **Phần câu hỏi:**
 - Gồm **4 ý hỏi đúng/sai** (a, b, c, d).
 - 4 ý phải thể hiện đủ **3 mức nhận thức**: Nhận biết — Thông hiểu — Vận dụng.
+- Cả bốn ý, kể cả Nhận biết, phải dùng dữ kiện quyết định trong bối cảnh. Không dùng phát biểu lý thuyết chung rồi thêm tên nhân vật hoặc cụm “trong tình huống trên”.
+- Tự kiểm tra từng ý: **che bối cảnh** thì chưa đủ cơ sở kết luận; **đổi dữ kiện quyết định** một cách hợp lí thì có thể đảo đáp án. Nếu không đạt, viết lại ý hỏi.
+- Bối cảnh phải đủ dữ kiện, không nói sẵn kết luận; không đánh dấu Sai chỉ vì thông tin không được đề cập. Lời giải từng ý phải nêu dữ kiện đã dùng và kiến thức áp dụng để kết luận.
 
 ---
 
