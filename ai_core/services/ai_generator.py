@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from django.conf import settings
 from django.core.cache import cache
 from .ai_provider import get_client
+from .curriculum_defaults import DEFAULT_GRADE_10_LEARNING_OUTCOMES
 
 # Ensure API key and model name are configured
 ai_client = get_client()
@@ -106,9 +107,9 @@ YÊU CẦU CẦN ĐẠT (YCCĐ) DO GIÁO VIÊN CUNG CẤP (TÙY CHỌN):
 
 PHẠM VI NỘI DUNG:
 - Môn học: {subject}
-- Nếu thẻ learning_outcomes để trống: xác định kiến thức/kỹ năng cần đánh giá từ SOURCE và sinh câu hỏi trong phạm vi đó. Không từ chối chỉ vì giáo viên chưa nhập YCCĐ; không tự gán nội dung suy ra thành YCCĐ chính thức của SGK. Trong các quy tắc dưới đây, phạm vi đánh giá là YCCĐ được nhập nếu có, hoặc nội dung bài học trong SOURCE khi không có YCCĐ.
-- Khi có YCCĐ, phân tích động từ, đối tượng kiến thức/kỹ năng và giới hạn để xác định điều cần đánh giá. Mỗi câu và từng ý Đúng/Sai phải đo một thành phần cụ thể của phạm vi đánh giá; không chỉ lấy từ khóa làm chủ đề rồi hỏi kiến thức liên quan bất kì.
-- Khi có YCCĐ, dùng YCCĐ làm mục tiêu đánh giá và giới hạn kiến thức; SOURCE là căn cứ kiến thức của bài học/SGK. Không tự thêm YCCĐ, không mở rộng nội dung ngoài mục tiêu. Nếu YCCĐ chưa rõ hoặc để trống, tận dụng nội dung SOURCE để xác định điều cần đánh giá trước khi kết luận thiếu thông tin.
+- YCCĐ giáo viên nhập có ưu tiên cao nhất. Khi dùng YCCĐ tổng quát mặc định, chỉ chọn các ý liên quan trực tiếp đến SOURCE/tài liệu đã chọn; không cố bao phủ toàn bộ chương trình hoặc tự suy ra YCCĐ mới.
+- Phân tích động từ, đối tượng kiến thức/kỹ năng và giới hạn của YCCĐ để xác định điều cần đánh giá. Mỗi câu và từng ý Đúng/Sai phải đo một thành phần cụ thể của phạm vi đánh giá; không chỉ lấy từ khóa làm chủ đề rồi hỏi kiến thức liên quan bất kì.
+- Dùng YCCĐ làm mục tiêu đánh giá và giới hạn kiến thức; SOURCE là căn cứ kiến thức của bài học/SGK. Không mở rộng nội dung ngoài mục tiêu. Nếu YCCĐ tổng quát không đủ để xác định bài đang học, dùng SOURCE để chọn đúng YCCĐ liên quan trước khi kết luận thiếu thông tin.
 - Chỉ kiểm tra kiến thức trong bài học/SGK và yêu cầu cần đạt (YCCĐ) của bài. Phân hóa bằng cách nhận diện, giải thích và vận dụng kiến thức đã học; không mở rộng sang bài/lớp khác hoặc kiến thức chuyên sâu.
 
 CÁCH RA CÂU HỎI:
@@ -118,7 +119,6 @@ CÁCH RA CÂU HỎI:
 - Khi môn/chủ đề phù hợp, dùng đoạn mã, biểu mẫu, bảng dữ liệu, lược đồ hoặc cấu hình cụ thể làm dữ kiện để học sinh phân tích; không bắt buộc mọi câu đều có một câu chuyện dài. Cung cấp đầy đủ dữ kiện bằng văn bản, không viện dẫn hình/bảng/đoạn mã không được đưa vào câu hỏi.
 - Với câu hỏi có bối cảnh, viết một đoạn văn tường thuật khách quan như đề thi, theo mạch: đơn vị/con người và hoạt động đang diễn ra → hiện trạng, dữ liệu hoặc điều kiện cụ thể → nhu cầu, mục tiêu hoặc phương án dự định triển khai. Các câu liên kết tự nhiên, thống nhất chủ thể; mỗi chi tiết phục vụ các nhận định phía sau. Không bắt buộc thêm đối thoại, biến cố bất ngờ, nhân vật phụ hoặc một sự cố chỉ để tạo cốt truyện.
 - Bối cảnh phải là một hoạt động thực tế có ý nghĩa trong phạm vi đánh giá: một đơn vị/cá nhân có nhu cầu cụ thể, dữ liệu hoặc ràng buộc cụ thể và cần lựa chọn, xây dựng, vận hành hay cải thiện một giải pháp. Kiến thức của bài phải cần thiết để giải quyết nhu cầu đó; không chỉ gắn tên lĩnh vực vào một câu hỏi lý thuyết.
-- KHÔNG dùng bối cảnh mô tả hoạt động dạy/học như "Trong một buổi học, giáo viên đã hướng dẫn học sinh...", "Trong tiết thực hành...", "Giáo viên yêu cầu học sinh nhắc lại..." hoặc bài tập đóng vai trong lớp. Nếu chọn trường học làm đơn vị trong tình huống thì phải là nhu cầu vận hành thực như quản lí thư viện, đăng kí hoạt động hay triển khai mạng; không chuyển thành lời giảng hoặc hoạt động kiểm tra bài cũ.
 
 QUY TẮC SỬ DỤNG NGUỒN:
 - Đọc SOURCE trước, kiểm tra từng đoạn có thực sự liên quan đến chủ đề và đủ dữ kiện hay không. Kết quả truy xuất có thể không liên quan.
@@ -995,9 +995,10 @@ class AIGeneratorService:
         else:
             type_instructions = "Bạn có thể tạo hỗn hợp cả 3 loại: multiple_choice, true_false, và short_answer nếu thấy phù hợp."
 
+        learning_outcomes = topic or DEFAULT_GRADE_10_LEARNING_OUTCOMES
         full_prompt = RAG_GENERATION_PROMPT_TEMPLATE.format(
             count=count,
-            topic=topic,
+            topic=learning_outcomes,
             context=context,
             subject=subject_name
         )
