@@ -215,6 +215,31 @@ class RAGServiceTests(SimpleTestCase):
                 self.assertEqual(tuple(o['is_correct'] for o in result[0]['options']), answers)
                 self.assertEqual(result[0]['explanation'], explanation)
 
+    @patch('classes.models.Class.objects')
+    def test_true_false_prompt_uses_daily_life_context_and_independent_solution(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = []
+        self.ai.generate_content.return_value.text = json.dumps({'questions': [{
+            'question_type': 'true_false',
+            'question_text': 'Kết nối Internet tại cửa hàng',
+            'context': 'Một cửa hàng đang chọn phương án kết nối mạng.',
+            'text': 'Có một số nhận định về phương án này như sau:',
+            'options': [
+                {'text': f'Nhận định {label}', 'is_correct': label in ('a', 'd')}
+                for label in 'abcd'
+            ],
+            'explanation': 'a) Biết, Đúng: lời giải. b) Hiểu, Sai: lời giải. c) Vận dụng, Sai: lời giải. d) Vận dụng, Đúng: lời giải.',
+        }]})
+
+        AIGeneratorService.generate_from_rag('So sánh mạng LAN và Internet.', 1, 'class-1', 'true_false')
+
+        prompt = self.ai.generate_content.call_args.args[0]
+        self.assertIn('câu chuyện đời thường tự nhiên', prompt)
+        self.assertIn('ngoài lĩnh vực Tin học', prompt)
+        self.assertIn('Ý | Đúng/Sai | Giải thích', prompt)
+        self.assertIn('đánh giá ĐỘC LẬP từng ý', prompt)
+        self.assertNotIn('Trong một buổi học, giáo viên đã hướng dẫn học sinh', prompt)
+
     def test_multiple_choice_still_uses_answer_key(self):
         result = AIGeneratorService._normalize_questions([{
             'question_type': 'multiple_choice',
