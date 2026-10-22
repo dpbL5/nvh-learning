@@ -11,6 +11,10 @@ from rest_framework.test import APITestCase
 from accounts.models import Role, User
 from ai_core.models import Document, DocumentChunk
 from ai_core.services.ai_generator import AIGeneratorService, NoQuestionsGenerated
+from ai_core.services.curriculum_defaults import (
+    COGNITIVE_LEVEL_GUIDANCE,
+    DEFAULT_GRADE_10_LEARNING_OUTCOMES,
+)
 from ai_core.services import openai_client
 from classes.models import Class, ClassStudent, Subject
 
@@ -132,6 +136,33 @@ class RAGServiceTests(SimpleTestCase):
                 self.assertIn(f'<learning_outcomes>\n{learning_outcomes}\n</learning_outcomes>', prompt)
         self.chunks.filter.assert_called_with(document__classroom_id='class-1')
         self.query.filter.assert_called_with(document_id=7)
+
+    @patch('classes.models.Class.objects')
+    def test_blank_outcome_uses_grade_10_default_and_cognitive_levels(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.query.order_by.return_value.__getitem__.return_value = [SimpleNamespace(
+            content='Switch kết nối các thiết bị trong mạng LAN.',
+            document=SimpleNamespace(title='Mạng máy tính'),
+        )]
+        self.ai.generate_content.return_value.text = json.dumps({'questions': [{
+            'question_type': 'multiple_choice',
+            'text': 'Thiết bị nào phù hợp để kết nối các máy tính trong mạng LAN?',
+            'options': [
+                {'text': 'Switch.', 'is_correct': True},
+                {'text': 'Máy in.', 'is_correct': False},
+                {'text': 'Máy quét.', 'is_correct': False},
+                {'text': 'Loa.', 'is_correct': False},
+            ],
+            'explanation': 'Biết: nhận biết chức năng của switch.',
+        }]})
+
+        result = AIGeneratorService.generate_from_rag('', 1, 'class-1')
+
+        self.assertEqual(len(result), 1)
+        prompt = self.ai.generate_content.call_args.args[0]
+        self.assertIn(DEFAULT_GRADE_10_LEARNING_OUTCOMES, prompt)
+        self.assertIn(COGNITIVE_LEVEL_GUIDANCE, prompt)
+        self.assertIn('Switch kết nối các thiết bị trong mạng LAN.', prompt)
 
     @patch('classes.models.Class.objects')
     def test_true_false_generation_preserves_every_answer_pattern(self, classrooms):
