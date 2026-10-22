@@ -11,10 +11,6 @@ from typing import List, Dict, Any, Optional, Tuple
 from django.conf import settings
 from django.core.cache import cache
 from .ai_provider import get_client
-from .curriculum_defaults import (
-    COGNITIVE_LEVEL_GUIDANCE,
-    DEFAULT_GRADE_10_LEARNING_OUTCOMES,
-)
 
 # Ensure API key and model name are configured
 ai_client = get_client()
@@ -103,21 +99,16 @@ RAG_GENERATION_PROMPT_TEMPLATE = """
 Bạn là giáo viên chuyên gia luyện thi THPT Quốc Gia, chuyên tạo câu hỏi theo Format 2025 (Bộ GD&ĐT).
 Nhiệm vụ: Tạo đúng {count} câu hỏi trong nội dung bài học/SGK, đánh giá YCCĐ do giáo viên cung cấp nếu có; khi YCCĐ để trống, sinh câu hỏi theo nội dung SOURCE.
 
-YÊU CẦU CẦN ĐẠT (YCCĐ):
+YÊU CẦU CẦN ĐẠT (YCCĐ) DO GIÁO VIÊN CUNG CẤP (TÙY CHỌN):
 <learning_outcomes>
 {topic}
 </learning_outcomes>
 
-KHUNG CẤP ĐỘ TƯ DUY:
-<cognitive_levels>
-{cognitive_levels}
-</cognitive_levels>
-
 PHẠM VI NỘI DUNG:
 - Môn học: {subject}
-- YCCĐ giáo viên nhập có ưu tiên cao nhất. Khi dùng YCCĐ tổng quát mặc định, chỉ chọn các ý liên quan trực tiếp đến SOURCE/tài liệu đã chọn; không cố bao phủ toàn bộ chương trình hoặc tự suy ra YCCĐ mới.
-- Phân tích động từ, đối tượng kiến thức/kỹ năng và giới hạn của YCCĐ để xác định điều cần đánh giá. Mỗi câu và từng ý Đúng/Sai phải đo một thành phần cụ thể của phạm vi đánh giá; không chỉ lấy từ khóa làm chủ đề rồi hỏi kiến thức liên quan bất kì.
-- Dùng YCCĐ làm mục tiêu đánh giá và giới hạn kiến thức; SOURCE là căn cứ kiến thức của bài học/SGK. Không mở rộng nội dung ngoài mục tiêu. Nếu YCCĐ tổng quát không đủ để xác định bài đang học, dùng SOURCE để chọn đúng YCCĐ liên quan trước khi kết luận thiếu thông tin.
+- Nếu thẻ learning_outcomes để trống: xác định kiến thức/kỹ năng cần đánh giá từ SOURCE và sinh câu hỏi trong phạm vi đó. Không từ chối chỉ vì giáo viên chưa nhập YCCĐ; không tự gán nội dung suy ra thành YCCĐ chính thức của SGK. Trong các quy tắc dưới đây, phạm vi đánh giá là YCCĐ được nhập nếu có, hoặc nội dung bài học trong SOURCE khi không có YCCĐ.
+- Khi có YCCĐ, phân tích động từ, đối tượng kiến thức/kỹ năng và giới hạn để xác định điều cần đánh giá. Mỗi câu và từng ý Đúng/Sai phải đo một thành phần cụ thể của phạm vi đánh giá; không chỉ lấy từ khóa làm chủ đề rồi hỏi kiến thức liên quan bất kì.
+- Khi có YCCĐ, dùng YCCĐ làm mục tiêu đánh giá và giới hạn kiến thức; SOURCE là căn cứ kiến thức của bài học/SGK. Không tự thêm YCCĐ, không mở rộng nội dung ngoài mục tiêu. Nếu YCCĐ chưa rõ hoặc để trống, tận dụng nội dung SOURCE để xác định điều cần đánh giá trước khi kết luận thiếu thông tin.
 - Chỉ kiểm tra kiến thức trong bài học/SGK và yêu cầu cần đạt (YCCĐ) của bài. Phân hóa bằng cách nhận diện, giải thích và vận dụng kiến thức đã học; không mở rộng sang bài/lớp khác hoặc kiến thức chuyên sâu.
 
 CÁCH RA CÂU HỎI:
@@ -1004,11 +995,9 @@ class AIGeneratorService:
         else:
             type_instructions = "Bạn có thể tạo hỗn hợp cả 3 loại: multiple_choice, true_false, và short_answer nếu thấy phù hợp."
 
-        learning_outcomes = topic or DEFAULT_GRADE_10_LEARNING_OUTCOMES
         full_prompt = RAG_GENERATION_PROMPT_TEMPLATE.format(
             count=count,
-            topic=learning_outcomes,
-            cognitive_levels=COGNITIVE_LEVEL_GUIDANCE,
+            topic=topic,
             context=context,
             subject=subject_name
         )
