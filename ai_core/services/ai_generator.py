@@ -33,6 +33,54 @@ GENERATION_CONFIG_RAG = {
     'max_output_tokens': 8192,
 }
 
+# Mức nhận thức chỉ áp dụng cho câu trắc nghiệm (multiple_choice).
+# Câu Đúng/Sai gồm bốn phát biểu độc lập nên không gắn nhãn Biết/Hiểu/Vận dụng.
+COGNITIVE_LEVEL_LABELS = {
+    'easy': 'Nhận biết',
+    'medium': 'Thông hiểu',
+    'hard': 'Vận dụng',
+}
+
+COGNITIVE_LEVEL_REQUIREMENTS = {
+    'easy': 'nhận diện khái niệm, đặc điểm hoặc dữ kiện đã học',
+    'medium': 'giải thích vai trò, phân biệt hoặc suy luận quan hệ',
+    'hard': 'đánh giá lựa chọn, thao tác, cách dùng dữ kiện hoặc kết quả theo ràng buộc',
+}
+
+
+def _build_cognitive_level_instruction(question_types: str, difficulty: str) -> str:
+    """Hướng dẫn gắn mức nhận thức: chỉ cho câu trắc nghiệm, không cho câu Đúng/Sai."""
+    storage_note = (
+        'câu true_false và short_answer giữ "difficulty": "medium" '
+        '(giá trị lưu trữ, không gắn nhãn nhận thức)'
+    )
+    if question_types not in ('multiple_choice', 'mixed'):
+        return (
+            '- Không gắn nhãn Biết/Hiểu/Vận dụng cho câu Đúng/Sai hoặc cho từng ý; '
+            f'{storage_note}.'
+        )
+
+    if difficulty in COGNITIVE_LEVEL_REQUIREMENTS:
+        label = COGNITIVE_LEVEL_LABELS[difficulty]
+        requirement = COGNITIVE_LEVEL_REQUIREMENTS[difficulty]
+        instruction = (
+            f'- Tất cả câu multiple_choice phải ở mức {label}: {requirement}. '
+            f'Ghi "difficulty": "{difficulty}" cho mỗi câu; không dùng mức khác.'
+        )
+    else:
+        levels = '; '.join(
+            f'"{key}" ({COGNITIVE_LEVEL_LABELS[key]} — {COGNITIVE_LEVEL_REQUIREMENTS[key]})'
+            for key in ('easy', 'medium', 'hard')
+        )
+        instruction = (
+            f'- Mỗi câu multiple_choice gắn đúng một mức nhận thức với nhiệm vụ thực tế của câu: {levels}. '
+            'Đa dạng mức trong bộ câu; ghi "difficulty" đúng mức từng câu, không mặc định tất cả cùng một mức.'
+        )
+
+    if question_types == 'mixed':
+        instruction += f' Với câu Đúng/Sai, không gắn nhãn mức nhận thức; {storage_note}.'
+    return instruction
+
 # max blocks for full document extraction - increased thanks to compact format
 MAX_BLOCKS_EXTRACTION = 8000
 RAG_MAX_CONTEXT_CHARS = int(os.environ.get('AI_RAG_MAX_CONTEXT_CHARS', '5000'))
@@ -131,31 +179,34 @@ CẤU TRÚC:
 1. multiple_choice (4 lựa chọn):
    - Đúng 4 phương án A, B, C, D; CHỈ DUY NHẤT 1 đáp án đúng (is_correct: true), không được tất cả đúng hoặc tất cả sai. Phương án cùng loại đối tượng/kết quả, cấu trúc và độ dài tương xứng, kết thúc bằng dấu chấm; giữ nguyên cú pháp và giá trị phương án là mã/lệnh/dữ liệu.
    - Câu dẫn ngắn, đủ dữ kiện, không cho sẵn công thức/quy tắc đang kiểm tra; BẮT BUỘC hỏi dạng lựa chọn: "Phương án nào sau đây nêu đúng ...?", "Phát biểu nào sau đây đúng về ...?", "Nhận định nào dưới đây mô tả đúng ...?" hoặc tương đương phù hợp nội dung. KHÔNG xuất câu hỏi mở như "... là gì?", "... có vai trò gì?", "... diễn ra như thế nào?", "Vì sao ...?", "Hãy giải thích ..."; nếu có, viết lại thành câu lựa chọn giữ nguyên kiến thức và mức nhận thức, rồi rà soát `text` trước khi xuất.
-   - Phân hóa qua nhiệm vụ Biết, Hiểu, Vận dụng kiến thức trong bài; không tăng khó bằng câu dài, mẹo, thuật ngữ ngoài bài/lớp hay kiến thức chuyên môn của bối cảnh.
+   - Phân hóa bằng nhiệm vụ phù hợp mức nhận thức của câu (nhận diện, giải thích, vận dụng); không tăng khó bằng câu dài, mẹo, thuật ngữ ngoài bài/lớp hay kiến thức chuyên môn của bối cảnh.
    - Xác định đáp án đúng và ba sai lầm hợp lí trước khi viết phương án; nhiễu cùng nhóm khái niệm, phản ánh hiểu sai cụ thể, ít nhất hai nhiễu đủ hấp dẫn. Không để đáp án đúng nổi bật bởi độ dài, không dùng nhiễu vô lí/trùng nhau/từ cực đoan; nếu không có ba nhiễu tốt thì đổi câu dẫn. Phân bố vị trí đáp án đúng cân đối, tránh chuỗi dễ đoán; khi hoán đổi phải cập nhật lời giải.
 
 2. true_false (Đúng/Sai):
-   - QUY TRÌNH NỘI BỘ: Bước 1 — từ SOURCE liên quan xác định khái niệm/kĩ năng, đối chiếu YCCĐ để giới hạn mục tiêu; nếu SOURCE thiếu, chỉ dùng kiến thức nền trong phạm vi YCCĐ đã nêu. Bước 2 — brainstorm các công việc cần kiến thức đó để giải quyết, xác định người thực hiện, mục tiêu, quyết định và kiến thức cần dùng; chọn việc liên hệ rõ nhất, đa dạng công việc và quyết định, không chỉ đổi tên nhân vật hoặc số liệu. Bước 3 — dựng tình huống có dữ kiện, ràng buộc, hành động/phương án cụ thể; mỗi chi tiết phục vụ ít nhất một nhận định, đủ điều kiện kết luận nhưng không nói hộ kiến thức đang kiểm tra. Bước 4 — lập mục tiêu từng ý TRƯỚC khi viết: khái niệm từ SOURCE/YCCĐ → đối tượng/dữ kiện của tình huống → thao tác tư duy Biết/Hiểu/Vận dụng; không phân loại bằng từ khóa hoặc độ dài câu, không bắt mọi ý đều là đánh giá hành động. Bước 5 — soạn từ cách giải: tự giải độc lập từng ý, sửa điều kiện/nhận định còn mơ hồ rồi mới gán is_correct và viết lời giải; chỉ xuất JSON cuối, không xuất danh sách brainstorm hay bản nháp.
+   - QUY TRÌNH NỘI BỘ: Bước 1 — từ SOURCE liên quan xác định khái niệm/kĩ năng, đối chiếu YCCĐ để giới hạn mục tiêu; nếu SOURCE thiếu, chỉ dùng kiến thức nền trong phạm vi YCCĐ đã nêu. Bước 2 — brainstorm các công việc cần kiến thức đó để giải quyết, xác định người thực hiện, mục tiêu, quyết định và kiến thức cần dùng; chọn việc liên hệ rõ nhất, đa dạng công việc và quyết định, không chỉ đổi tên nhân vật hoặc số liệu. Bước 3 — dựng tình huống có dữ kiện, ràng buộc, hành động/phương án cụ thể; mỗi chi tiết phục vụ ít nhất một nhận định, đủ điều kiện kết luận nhưng không nói hộ kiến thức đang kiểm tra. Bước 4 — lập mục tiêu từng ý TRƯỚC khi viết: khái niệm từ SOURCE/YCCĐ → đối tượng/dữ kiện của tình huống → kết luận Đúng/Sai cần kiểm tra; không bắt mọi ý đều là đánh giá hành động. Bước 5 — soạn từ cách giải: tự giải độc lập từng ý, sửa điều kiện/nhận định còn mơ hồ rồi mới gán is_correct và viết lời giải; chỉ xuất JSON cuối, không xuất danh sách brainstorm hay bản nháp.
    - Ưu tiên bối cảnh là một câu chuyện đời thường tự nhiên (gia đình, cửa hàng nhỏ, dịch vụ công cộng, câu lạc bộ, sự kiện, di chuyển hoặc sinh hoạt hằng ngày); được phép ngoài lĩnh vực Tin học nhưng phải tạo nhu cầu thật khiến khái niệm/kĩ năng trong SOURCE cần thiết để giải quyết. Không dùng chi tiết đời thường làm kiến thức ngầm, mẹo đánh đố hoặc căn cứ duy nhất để đánh dấu Đúng/Sai.
    - `question_text`: nội dung/tiêu đề ngắn (ví dụ "Về sự ăn mòn kim loại"). `context`: BẮT BUỘC có thực thể cụ thể (cá nhân, tổ chức, hệ thống) đang thực hiện hoạt động giải quyết vấn đề thực tiễn; tường thuật liền mạch vấn đề/mục tiêu, dữ kiện/ràng buộc, hoạt động/phương án; khoảng 5–10 dòng hoặc ít hơn, không nói hộ đáp án, không ghi nhãn "Tình huống". Có thể kèm đoạn mã, biểu mẫu, hồ sơ hoặc cấu hình để phân tích.
    - `context` CHỈ cung cấp dữ kiện tình huống (đối tượng, số liệu, trạng thái, cấu hình, hành động, quan sát, yêu cầu); KHÔNG cung cấp định nghĩa, công thức, quy tắc, chức năng, quan hệ nhân–quả hay cách giải — phần đó chỉ có trong `explanation`. `text`: câu chuyển tiếp gắn hoạt động thực tế, như "Có một số nhận định về phương án xử lí của đơn vị như sau:"; không dựng giáo viên/nhóm học sinh thảo luận, không dùng "Hãy xác định Đúng hay Sai".
    - ĐÚNG 4 phát biểu trong `options`; mỗi ý MỘT kết luận trọng tâm, không ghép hai kết luận độc lập bằng "và/đồng thời"; cả bốn ý xét đối tượng, hoạt động hoặc phương án của tình huống.
-   - MỖI CÂU đủ ba mức Biết (B), Hiểu (H), Vận dụng (VD) theo đúng một cơ cấu: 2B + 1H + 1VD; 1B + 2H + 1VD; 1B + 1H + 2VD. Đa dạng cơ cấu trong bộ, sắp ý từ Biết đến Hiểu rồi Vận dụng, ghi đúng mức từng ý trong `explanation`.
-   - Ý Biết nhận diện khái niệm/đặc điểm qua dữ kiện; Ý Hiểu giải thích vai trò, phân biệt hoặc suy luận quan hệ; Ý Vận dụng đánh giá lựa chọn, thao tác, cách dùng dữ kiện hay kết quả theo ràng buộc. Không viết câu chung chung như "Hệ thống giúp nâng cao hiệu quả" hay "Cần bảo đảm dữ liệu chính xác".
+   - KHÔNG gắn nhãn mức nhận thức (Biết/Hiểu/Vận dụng) cho câu Đúng/Sai hoặc cho từng ý, kể cả trong `explanation`: một câu Đúng/Sai gồm bốn phát biểu độc lập nên không thuộc một mức nhận thức duy nhất.
+   - Các ý vẫn đa dạng thao tác tư duy: nhận diện khái niệm/đặc điểm qua dữ kiện, giải thích vai trò/phân biệt/suy luận quan hệ, đánh giá lựa chọn/thao tác/cách dùng dữ kiện hay kết quả theo ràng buộc; sắp ý theo mạch của tình huống. Không viết câu chung chung như "Hệ thống giúp nâng cao hiệu quả" hay "Cần bảo đảm dữ liệu chính xác".
    - Bối cảnh đủ dữ kiện để kết hợp với kiến thức đã học kết luận rõ cả bốn ý; không lấy "không được đề cập" làm căn cứ đánh dấu Sai; các ý khai thác khía cạnh khác nhau, không lặp một suy luận bốn lần. Nêu rõ điều kiện làm thay đổi đáp án (thời điểm, dữ liệu được dùng, quyền truy cập, đầu vào/đầu ra, cấu hình...) ngay trong bối cảnh hoặc ý hỏi, không chỉ thêm vào lời giải; tránh phủ định kép và từ đánh giá không có tiêu chí.
    - Ý Sai viết từ nhầm lẫn kiến thức hoặc phương án xử lí sai có cơ sở trong tình huống; không làm sai bằng chi tiết vô lí, chơi chữ hay chèn "luôn luôn/duy nhất"; không tạo độ khó bằng thuật ngữ ngoài bài. KIỂM TRA NHỚ LẠI: với từng ý, xác định kiến thức học sinh phải tự nhớ mà bối cảnh không cung cấp; nếu chỉ đọc/chép/đối chiếu câu chữ trong bối cảnh là trả lời được thì bỏ phần lý thuyết làm lộ đáp án hoặc viết lại ý hỏi.
-   - `explanation` trình bày a), b), c), d), mỗi ý ghi mức nhận thức, Đúng/Sai và giải thích theo mạch dữ kiện/đối tượng đang xét → kiến thức áp dụng → kết luận; ý Sai chỉ đúng chỗ sai và cách sửa; kết luận khớp `is_correct`. TỰ GIẢI trước khi xuất (nội bộ, KHÔNG đưa bảng nháp vào JSON): đánh giá ĐỘC LẬP từng ý theo bảng nháp `Ý | Đúng/Sai | Giải thích`, bổ sung điều kiện còn thiếu vào bối cảnh hoặc ý hỏi, rồi chốt đáp án a), b), c), d); không ép số lượng ý Đúng/Sai, không dùng đáp án ý này suy ra ý khác. TỰ PHẢN BIỆN: tìm cách hiểu hợp lí hoặc điều kiện chưa nêu khiến đáp án ngược lại cũng bảo vệ được; nếu có, bổ sung dữ kiện hoặc viết lại ý; không xuất bản nháp/quá trình soạn.
+   - `explanation` trình bày a), b), c), d), mỗi ý ghi Đúng/Sai và giải thích theo mạch dữ kiện/đối tượng đang xét → kiến thức áp dụng → kết luận; ý Sai chỉ đúng chỗ sai và cách sửa; kết luận khớp `is_correct`. TỰ GIẢI trước khi xuất (nội bộ, KHÔNG đưa bảng nháp vào JSON): đánh giá ĐỘC LẬP từng ý theo bảng nháp `Ý | Đúng/Sai | Giải thích`, bổ sung điều kiện còn thiếu vào bối cảnh hoặc ý hỏi, rồi chốt đáp án a), b), c), d); không ép số lượng ý Đúng/Sai, không dùng đáp án ý này suy ra ý khác. TỰ PHẢN BIỆN: tìm cách hiểu hợp lí hoặc điều kiện chưa nêu khiến đáp án ngược lại cũng bảo vệ được; nếu có, bổ sung dữ kiện hoặc viết lại ý; không xuất bản nháp/quá trình soạn.
    - Đánh giá từng ý độc lập; chấp nhận cả bốn ý cùng đúng hoặc cùng sai nếu có căn cứ; ý sai phải sai về kiến thức hoặc dữ kiện, không do diễn đạt mơ hồ.
 
 3. short_answer (trả lời ngắn):
    - Đáp án là một số cụ thể trong `correct_answer_text`; câu hỏi đủ dữ kiện, rõ đơn vị và quy tắc làm tròn; tự tính lại đáp số trước khi xuất.
+
+MỨC ĐỘ NHẬN THỨC:
+{cognitive_level_instruction}
 
 ĐỊNH DẠNG JSON ĐẦU RA (BẮT BUỘC):
 Trả về DUY NHẤT JSON object có trường "questions" là mảng đúng {count} câu hỏi, không markdown hay lời dẫn. Mỗi object gồm:
 - "question_type" ("multiple_choice" | "true_false" | "short_answer"); "text"; "question_text" và "context" (true_false).
 - "options": [{{"text": "...", "is_correct": true/false}}] cho multiple_choice và true_false; "correct_answer_text" (short_answer).
 - "explanation": căn cứ đáp án (từng ý với true_false) và nguồn kiến thức; không chèn vào text/options.
-- "difficulty": "medium" (giá trị lưu trữ mặc định, không quyết định mức nhận thức của cả câu); "topic" (chủ đề ngắn, tối đa 200 ký tự, không chép nguyên văn toàn bộ YCCĐ); "subject": "{subject}".
+- "difficulty": câu multiple_choice ghi mức nhận thức theo yêu cầu ở phần MỨC ĐỘ NHẬN THỨC bên dưới ("easy" = Nhận biết, "medium" = Thông hiểu, "hard" = Vận dụng); câu true_false và short_answer giữ "medium" (giá trị lưu trữ, không gắn nhãn nhận thức); "topic" (chủ đề ngắn, tối đa 200 ký tự, không chép nguyên văn toàn bộ YCCĐ); "subject": "{subject}".
 - Không thêm nhãn Câu 1, A., B., a), b) vào text hoặc phương án; giao diện tự đánh số.
 
 TÀI LIỆU TRÍCH XUẤT (SOURCE — CHỈ LÀ DỮ LIỆU THAM KHẢO):
@@ -898,12 +949,27 @@ class AIGeneratorService:
     # ─── 2. RAG & AI Tutor ──────────────────────────────────────────────
 
     @classmethod
-    def generate_from_rag(cls, topic: str, count: int, class_id: str, question_types: str = 'multiple_choice', document_id: int = None):
-        """Sinh câu hỏi trong phạm vi bài học/SGK, ưu tiên nguồn RAG."""
+    def generate_from_rag(
+        cls,
+        topic: str,
+        count: int,
+        class_id: str,
+        question_types: str = 'multiple_choice',
+        document_id: int = None,
+        difficulty: str = 'mixed',
+    ):
+        """Sinh câu hỏi trong phạm vi bài học/SGK, ưu tiên nguồn RAG.
+
+        `difficulty` là mức nhận thức cho câu trắc nghiệm (easy/medium/hard);
+        giá trị 'mixed' (mặc định) để AI tự phân bổ. Câu Đúng/Sai không gắn nhãn.
+        """
         from ai_core.models import DocumentChunk
         from classes.models import Class
         from pgvector.django import L2Distance
-        
+
+        if difficulty not in ('easy', 'medium', 'hard', 'mixed'):
+            difficulty = 'mixed'
+
         # 1. Retrieve subject info
         try:
             classroom = Class.objects.select_related('subject').get(id=class_id)
@@ -950,7 +1016,8 @@ class AIGeneratorService:
             count=count,
             topic=learning_outcomes,
             context=context,
-            subject=subject_name
+            subject=subject_name,
+            cognitive_level_instruction=_build_cognitive_level_instruction(question_types, difficulty),
         )
         full_prompt += f"\nLƯU Ý QUAN TRỌNG: {type_instructions}"
 
@@ -968,7 +1035,18 @@ class AIGeneratorService:
         normalized = cls._normalize_questions(questions)
         if not normalized:
             raise ValueError('AI trả về câu hỏi thiếu nội dung hợp lệ.')
-        return normalized
+        return cls._apply_cognitive_level(normalized, difficulty)
+
+    @staticmethod
+    def _apply_cognitive_level(questions: List[Dict[str, Any]], difficulty: str) -> List[Dict[str, Any]]:
+        """Gắn mức nhận thức đã chọn cho câu trắc nghiệm; bỏ nhãn ở câu Đúng/Sai."""
+        for item in questions:
+            q_type = item.get('question_type')
+            if q_type == 'multiple_choice' and difficulty in COGNITIVE_LEVEL_REQUIREMENTS:
+                item['difficulty'] = difficulty
+            elif q_type in ('true_false', 'short_answer'):
+                item['difficulty'] = 'medium'
+        return questions
 
     @classmethod
     def ingest_document(cls, file_path: str, document_id: int) -> Dict[str, Any]:

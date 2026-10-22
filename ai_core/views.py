@@ -579,6 +579,10 @@ class AIGenerateFromRAGView(APIView):
         question_types = request.data.get('question_types', 'multiple_choice')
         if question_types not in ('multiple_choice', 'true_false', 'short_answer', 'mixed'):
             question_types = 'multiple_choice'
+        # Mức nhận thức chỉ có hiệu lực với câu trắc nghiệm; Đúng/Sai không gắn nhãn.
+        difficulty = request.data.get('difficulty', 'mixed')
+        if difficulty not in ('easy', 'medium', 'hard', 'mixed'):
+            difficulty = 'mixed'
         document_id = request.data.get('document_id')  # Tuỳ chọn: Lọc theo 1 tài liệu cụ thể
 
         if not class_id:
@@ -598,6 +602,7 @@ class AIGenerateFromRAGView(APIView):
                 class_id=class_id,
                 question_types=question_types,
                 document_id=document_id,
+                difficulty=difficulty,
             )
             if not questions_data:
                 raise NoQuestionsGenerated('AI chưa tạo được câu hỏi. Hãy kiểm tra yêu cầu cần đạt và tài liệu bài học được chọn.')

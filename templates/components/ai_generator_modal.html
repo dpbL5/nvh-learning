@@ -114,6 +114,18 @@
                                             <option value="short_answer">Trả lời ngắn</option>
                                         </select>
                                     </div>
+                                    <div class="mb-3" id="ragDifficultyWrap">
+                                        <label class="form-label fw-bold small" for="ragDifficulty">
+                                            Mức độ nhận thức
+                                            <span class="text-muted fw-normal">(chỉ câu trắc nghiệm)</span>
+                                        </label>
+                                        <select class="form-select" id="ragDifficulty">
+                                            <option value="mixed" selected>Tự động – đa dạng mức độ</option>
+                                            <option value="easy">Nhận biết</option>
+                                            <option value="medium">Thông hiểu</option>
+                                            <option value="hard">Vận dụng</option>
+                                        </select>
+                                    </div>
                                     <button type="submit" class="btn btn-success w-100" id="btnGenerateRAG">
                                         <i class="bi bi-cpu me-1"></i>Sinh Câu Hỏi từ Tri thức
                                     </button>

@@ -130,6 +130,15 @@ class BrowserE2ETestCase(StaticLiveServerTestCase):
         self.page.locator("#ai-rag-tab").click()
         self.page.locator("#aiRagContent").wait_for(state="visible")
 
+        # Cognitive level is selectable for multiple choice only.
+        self.page.locator("#ragDifficultyWrap").wait_for(state="visible")
+        self.page.select_option("#ragQuestionTypes", "true_false")
+        self.page.locator("#ragDifficultyWrap").wait_for(state="hidden")
+        self.page.select_option("#ragQuestionTypes", "multiple_choice")
+        self.page.locator("#ragDifficultyWrap").wait_for(state="visible")
+        self.page.select_option("#ragDifficulty", "hard")
+        self.assertEqual(self.page.locator("#ragDifficulty").input_value(), "hard")
+
         self.page.goto(self.url(f"/exams/builder/{self.quiz.pk}/"))
         self.page.locator("body").wait_for()
         self.page.get_by_text("Đề E2E").first.wait_for()

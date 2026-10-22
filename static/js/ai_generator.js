@@ -21,6 +21,7 @@ const AIGenerator = {
     init(options = {}) {
         this.config = { ...this.config, ...options };
         this.bindEvents();
+        this.syncDifficultyVisibility();
         this.setupBeforeUnload();
     },
 
@@ -58,7 +59,21 @@ const AIGenerator = {
             }
         });
         
+        // Mức nhận thức chỉ áp dụng cho câu trắc nghiệm.
+        document.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'ragQuestionTypes') {
+                this.syncDifficultyVisibility();
+            }
+        });
+
         // Drag and drop for file input if needed (optional enhancement)
+    },
+
+    syncDifficultyVisibility() {
+        const typeSelect = document.getElementById('ragQuestionTypes');
+        const wrap = document.getElementById('ragDifficultyWrap');
+        if (!wrap) return;
+        wrap.style.display = typeSelect && typeSelect.value !== 'multiple_choice' ? 'none' : '';
     },
 
     async handleFileExtraction() {
@@ -178,6 +193,7 @@ const AIGenerator = {
                     topic,
                     count: parseInt(document.getElementById('ragCount')?.value || '5', 10),
                     question_types: document.getElementById('ragQuestionTypes')?.value,
+                    difficulty: document.getElementById('ragDifficulty')?.value || 'mixed',
                     document_id: document.getElementById('ragDocument')?.value || null,
                 }),
             });
@@ -212,7 +228,8 @@ const AIGenerator = {
 
         board.innerHTML = drafts.map((q, index) => {
             const typeLabel = this.getTypeBadge(q.question_type);
-            const diffLabel = source === 'rag' ? '' : this.getDiffBadge(q.difficulty);
+            // Chỉ câu trắc nghiệm mới gắn nhãn mức nhận thức; Đúng/Sai không gắn.
+            const diffLabel = q.question_type === 'multiple_choice' ? this.getDiffBadge(q.difficulty) : '';
             const unresolved = !this.hasConfiguredAnswer(q);
             let contextHtml = '';
             // true_false: renderQuestionStem already renders question_text + context, skip here

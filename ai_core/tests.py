@@ -216,7 +216,7 @@ class RAGServiceTests(SimpleTestCase):
                 self.assertEqual(result[0]['explanation'], explanation)
 
     @patch('classes.models.Class.objects')
-    def test_true_false_prompt_uses_source_tasks_cognitive_levels_and_independent_solution(self, classrooms):
+    def test_true_false_prompt_drops_cognitive_level_labels_and_uses_independent_solution(self, classrooms):
         classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
         self.retrieved.return_value = [SimpleNamespace(
             content='Mạng LAN kết nối các thiết bị trong phạm vi nhỏ; Internet kết nối các mạng toàn cầu.',
@@ -231,24 +231,31 @@ class RAGServiceTests(SimpleTestCase):
                 {'text': f'Nhận định {label}', 'is_correct': label in ('a', 'd')}
                 for label in 'abcd'
             ],
-            'explanation': 'a) Biết, Đúng: lời giải. b) Hiểu, Sai: lời giải. c) Vận dụng, Sai: lời giải. d) Vận dụng, Đúng: lời giải.',
+            'difficulty': 'hard',
+            'explanation': 'a) Đúng: lời giải. b) Sai: lời giải. c) Sai: lời giải. d) Đúng: lời giải.',
         }]})
 
-        AIGeneratorService.generate_from_rag('So sánh mạng LAN và Internet.', 1, 'class-1', 'true_false')
+        result = AIGeneratorService.generate_from_rag(
+            'So sánh mạng LAN và Internet.', 1, 'class-1', 'true_false', difficulty='hard',
+        )
 
+        self.assertEqual(result[0]['difficulty'], 'medium')
         prompt = self.ai.generate_content.call_args.args[0]
         self.assertIn('câu chuyện đời thường tự nhiên', prompt)
         self.assertIn('ngoài lĩnh vực Tin học', prompt)
         self.assertIn('Ý | Đúng/Sai | Giải thích', prompt)
         self.assertIn('đánh giá ĐỘC LẬP từng ý', prompt)
+        self.assertIn('Không gắn nhãn Biết/Hiểu/Vận dụng cho câu Đúng/Sai', prompt)
         self.assertIn('[Phạm vi kết nối mạng]: Mạng LAN kết nối', prompt)
+        self.assertNotIn('2B + 1H + 1VD', prompt)
+        self.assertNotIn('mỗi ý ghi mức nhận thức', prompt)
+        self.assertNotIn('Tất cả câu multiple_choice phải ở mức', prompt)
         steps = [f'Bước {number} —' for number in range(1, 6)]
         positions = [prompt.index(step) for step in steps]
         self.assertEqual(positions, sorted(positions))
         for requirement in (
             'brainstorm các công việc cần kiến thức đó để giải quyết',
-            'khái niệm từ SOURCE/YCCĐ → đối tượng/dữ kiện của tình huống → thao tác tư duy Biết/Hiểu/Vận dụng',
-            'không phân loại bằng từ khóa hoặc độ dài câu',
+            'khái niệm từ SOURCE/YCCĐ → đối tượng/dữ kiện của tình huống → kết luận Đúng/Sai cần kiểm tra',
             'không bắt mọi ý đều là đánh giá hành động',
             'đa dạng công việc và quyết định',
             'không xuất danh sách brainstorm hay bản nháp',
@@ -257,6 +264,91 @@ class RAGServiceTests(SimpleTestCase):
                 self.assertIn(requirement, prompt)
         self.assertNotIn('Mỗi nhận định phải nêu một lựa chọn, thao tác', prompt)
         self.assertNotIn('Trong một buổi học, giáo viên đã hướng dẫn học sinh', prompt)
+
+    @patch('classes.models.Class.objects')
+    def test_multiple_choice_generation_applies_selected_cognitive_level(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = [SimpleNamespace(
+            content='Switch kết nối các thiết bị trong mạng LAN.',
+            document=SimpleNamespace(title='Mạng máy tính'),
+        )]
+        self.ai.generate_content.return_value.text = json.dumps({'questions': [{
+            'question_type': 'multiple_choice',
+            'text': 'Thiết bị nào phù hợp để kết nối các máy tính trong mạng LAN?',
+            'difficulty': 'easy',
+            'options': [
+                {'text': 'Switch.', 'is_correct': True},
+                {'text': 'Máy in.', 'is_correct': False},
+                {'text': 'Máy quét.', 'is_correct': False},
+                {'text': 'Loa.', 'is_correct': False},
+            ],
+            'explanation': 'Switch kết nối các thiết bị trong mạng LAN.',
+        }]})
+
+        result = AIGeneratorService.generate_from_rag(
+            'Nêu được chức năng của switch.', 1, 'class-1', 'multiple_choice', difficulty='hard',
+        )
+
+        self.assertEqual(result[0]['difficulty'], 'hard')
+        prompt = self.ai.generate_content.call_args.args[0]
+        self.assertIn('Tất cả câu multiple_choice phải ở mức Vận dụng', prompt)
+        self.assertIn('Ghi "difficulty": "hard" cho mỗi câu', prompt)
+        self.assertNotIn('Không gắn nhãn Biết/Hiểu/Vận dụng cho câu Đúng/Sai', prompt)
+
+    @patch('classes.models.Class.objects')
+    def test_multiple_choice_generation_without_selected_level_keeps_model_levels(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = []
+        self.ai.generate_content.return_value.text = json.dumps({'questions': [
+            {
+                'question_type': 'multiple_choice',
+                'text': 'Câu nhận biết?',
+                'difficulty': 'easy',
+                'options': [
+                    {'text': 'A', 'is_correct': True}, {'text': 'B', 'is_correct': False},
+                    {'text': 'C', 'is_correct': False}, {'text': 'D', 'is_correct': False},
+                ],
+            },
+            {
+                'question_type': 'multiple_choice',
+                'text': 'Câu vận dụng?',
+                'difficulty': 'hard',
+                'options': [
+                    {'text': 'A', 'is_correct': False}, {'text': 'B', 'is_correct': True},
+                    {'text': 'C', 'is_correct': False}, {'text': 'D', 'is_correct': False},
+                ],
+            },
+        ]})
+
+        result = AIGeneratorService.generate_from_rag('Mạng máy tính', 2, 'class-1', 'multiple_choice')
+
+        self.assertEqual([q['difficulty'] for q in result], ['easy', 'hard'])
+        prompt = self.ai.generate_content.call_args.args[0]
+        self.assertIn('Mỗi câu multiple_choice gắn đúng một mức nhận thức', prompt)
+        self.assertIn('"easy" (Nhận biết', prompt)
+        self.assertNotIn('Tất cả câu multiple_choice phải ở mức', prompt)
+
+    @patch('classes.models.Class.objects')
+    def test_true_false_generation_ignores_selected_cognitive_level(self, classrooms):
+        classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
+        self.retrieved.return_value = []
+        self.ai.generate_content.return_value.text = json.dumps({'questions': [{
+            'question_type': 'true_false',
+            'question_text': 'Kết nối mạng',
+            'context': 'Một cửa hàng đang chọn phương án kết nối mạng.',
+            'text': 'Có một số nhận định về phương án này như sau:',
+            'options': [
+                {'text': f'Nhận định {label}', 'is_correct': label in ('a', 'd')}
+                for label in 'abcd'
+            ],
+            'explanation': 'a) Đúng. b) Sai. c) Sai. d) Đúng.',
+        }]})
+
+        result = AIGeneratorService.generate_from_rag(
+            'Mạng máy tính', 1, 'class-1', 'true_false', difficulty='hard',
+        )
+
+        self.assertEqual(result[0]['difficulty'], 'medium')
 
     def test_multiple_choice_still_uses_answer_key(self):
         result = AIGeneratorService._normalize_questions([{
@@ -458,22 +550,28 @@ class AICoreApiTests(APITestCase):
 		ai.embed_content.assert_not_called()
 
 	@patch('ai_core.views.AIGeneratorService.generate_from_rag', return_value=[{'text': 'Câu hỏi mẫu'}])
-	def test_generate_from_rag_ignores_legacy_difficulty(self, generate):
+	def test_generate_from_rag_forwards_cognitive_level_for_multiple_choice(self, generate):
 		self.client.force_authenticate(user=self.teacher)
-		for extra in ({}, {'difficulty': 'hard'}):
+		for extra, expected_level in (
+			({}, 'mixed'),
+			({'difficulty': 'hard'}, 'hard'),
+			({'difficulty': 'medium'}, 'medium'),
+			({'difficulty': 'khong-hop-le'}, 'mixed'),
+		):
 			with self.subTest(extra=extra):
 				generate.reset_mock()
 				payload = {
 					'class_id': str(self.classroom.id),
 					'topic': 'Nêu được chức năng của switch.\nLựa chọn thiết bị kết nối mạng phù hợp.',
-					'count': 3, 'question_types': 'true_false', **extra,
+					'count': 3, 'question_types': 'multiple_choice', **extra,
 				}
 				res = self.client.post('/api/ai/generate/from-rag/', payload, format='json')
 				self.assertEqual(res.status_code, status.HTTP_200_OK)
 				self.assertEqual(res.data['questions'], generate.return_value)
 				generate.assert_called_once_with(
 					topic=payload['topic'], count=3, class_id=str(self.classroom.id),
-					question_types='true_false', document_id=None,
+					question_types='multiple_choice', document_id=None,
+					difficulty=expected_level,
 				)
 
 	def test_generate_from_rag_forbidden_for_student(self):
