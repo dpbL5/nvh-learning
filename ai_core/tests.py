@@ -216,9 +216,12 @@ class RAGServiceTests(SimpleTestCase):
                 self.assertEqual(result[0]['explanation'], explanation)
 
     @patch('classes.models.Class.objects')
-    def test_true_false_prompt_uses_daily_life_context_and_independent_solution(self, classrooms):
+    def test_true_false_prompt_uses_source_tasks_cognitive_levels_and_independent_solution(self, classrooms):
         classrooms.select_related.return_value.get.return_value.subject.name = 'Tin học'
-        self.retrieved.return_value = []
+        self.retrieved.return_value = [SimpleNamespace(
+            content='Mạng LAN kết nối các thiết bị trong phạm vi nhỏ; Internet kết nối các mạng toàn cầu.',
+            document=SimpleNamespace(title='Phạm vi kết nối mạng'),
+        )]
         self.ai.generate_content.return_value.text = json.dumps({'questions': [{
             'question_type': 'true_false',
             'question_text': 'Kết nối Internet tại cửa hàng',
@@ -238,6 +241,21 @@ class RAGServiceTests(SimpleTestCase):
         self.assertIn('ngoài lĩnh vực Tin học', prompt)
         self.assertIn('Ý | Đúng/Sai | Giải thích', prompt)
         self.assertIn('đánh giá ĐỘC LẬP từng ý', prompt)
+        self.assertIn('[Phạm vi kết nối mạng]: Mạng LAN kết nối', prompt)
+        steps = [f'Bước {number} —' for number in range(1, 6)]
+        positions = [prompt.index(step) for step in steps]
+        self.assertEqual(positions, sorted(positions))
+        for requirement in (
+            'brainstorm các công việc cần kiến thức đó để giải quyết',
+            'khái niệm từ SOURCE/YCCĐ → đối tượng/dữ kiện của tình huống → thao tác tư duy Biết/Hiểu/Vận dụng',
+            'không phân loại bằng từ khóa hoặc độ dài câu',
+            'không bắt mọi ý đều là đánh giá hành động',
+            'đa dạng công việc và quyết định',
+            'không xuất danh sách brainstorm hay bản nháp',
+        ):
+            with self.subTest(requirement=requirement):
+                self.assertIn(requirement, prompt)
+        self.assertNotIn('Mỗi nhận định phải nêu một lựa chọn, thao tác', prompt)
         self.assertNotIn('Trong một buổi học, giáo viên đã hướng dẫn học sinh', prompt)
 
     def test_multiple_choice_still_uses_answer_key(self):
