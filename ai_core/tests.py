@@ -89,6 +89,31 @@ class AIQuestionJSONTests(SimpleTestCase):
             [{'text': 'Câu 1'}],
         )
 
+    def test_true_false_without_text_uses_question_title_as_transition(self):
+        generated = [{
+            'question_type': 'true_false',
+            'question_text': 'Ứng dụng IoT trong nhà kính',
+            'context': 'Một nhà kính sử dụng cảm biến để theo dõi nhiệt độ.',
+            'options': [
+                {'text': f'Nhận định {label}', 'is_correct': label in ('a', 'c')}
+                for label in 'abcd'
+            ],
+            'difficulty': 'medium',
+            'topic': 'Internet vạn vật',
+            'subject': 'Tin học',
+            'explanation': 'Lời giải mẫu.',
+        }]
+
+        normalized = AIGeneratorService._normalize_questions(generated)
+
+        self.assertEqual(len(normalized), 1)
+        self.assertEqual(normalized[0]['question_text'], 'Ứng dụng IoT trong nhà kính')
+        self.assertEqual(
+            normalized[0]['text'],
+            'Có một số nhận định về Ứng dụng IoT trong nhà kính như sau:',
+        )
+        self.assertEqual(len(normalized[0]['options']), 4)
+
 
 class RAGServiceTests(SimpleTestCase):
     def setUp(self):

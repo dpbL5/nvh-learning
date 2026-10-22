@@ -735,6 +735,7 @@ class AIGeneratorService:
             if not isinstance(content_json, list):
                 content_json = []
 
+            question_title = str(q.get('question_text') or q.get('questionTitle') or '').strip()
             q_text = (
                 q.get('text')
                 or q.get('stem')
@@ -745,6 +746,17 @@ class AIGeneratorService:
             q_text = str(q_text).strip()
             if not q_text:
                 q_text = AIGeneratorService._blocks_to_text(content_json)
+
+            # Một số model trả câu Đúng/Sai hợp lệ nhưng bỏ `text` (câu chuyển tiếp),
+            # dù đã có question_text, context và bốn options. Tạo câu chuyển tiếp an toàn
+            # để không làm mất cả lô câu hỏi chỉ vì thiếu trường trình bày.
+            if not q_text and q_type == 'true_false':
+                transition_subject = question_title or str(q.get('topic') or '').strip()
+                if transition_subject:
+                    transition_subject = transition_subject.rstrip('.').strip()
+                    q_text = f"Có một số nhận định về {transition_subject[:400]} như sau:"
+                else:
+                    q_text = "Có một số nhận định về tình huống trên như sau:"
 
             if not content_json and q_text:
                 content_json = [{'type': 'text', 'value': q_text}]
@@ -757,7 +769,7 @@ class AIGeneratorService:
                 'question_type': q_type,
                 'content_json': content_json,
                 'text': q_text,
-                'question_text': str(q.get('question_text') or q.get('questionTitle') or '')[:500].strip(),
+                'question_text': question_title[:500],
                 'topic': str(q.get('topic') or '')[:200].strip(),
                 'image': str(q.get('image') or ''),
                 'difficulty': difficulty,
