@@ -2,7 +2,7 @@ let attemptId = null, quizQuestions = [], endTimeTime = null, timerInterval = nu
 let currentAnswers = {};
 if (!localStorage.getItem('auth_hint')) window.location.href = '/login/';
 
-function authHeaders() {
+function quizAuthHeaders() {
     return { 'Content-Type': 'application/json' };
 }
 function escapeHtml(s) { return (s ?? '').toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
@@ -11,7 +11,7 @@ function escapeHtml(s) { return (s ?? '').toString().replace(/&/g,"&amp;").repla
 async function init() {
     try {
         // 1. Fetch quiz info
-        const res = await fetch('/api/exams/' + quizId + '/', {headers: authHeaders()});
+        const res = await fetch('/api/exams/' + quizId + '/', {headers: quizAuthHeaders()});
         if (!res.ok) throw new Error();
         const quizInfo = await res.json();
         
@@ -24,7 +24,7 @@ async function init() {
 
         // 2. Check if already completed by calling start endpoint
         try {
-            var startRes = await fetch('/api/exams/' + quizId + '/start/', {method:'POST', headers:authHeaders()});
+            var startRes = await fetch('/api/exams/' + quizId + '/start/', {method:'POST', headers:quizAuthHeaders()});
             var startData = await startRes.json();
             if (startData.is_completed) {
                 // Already completed — go directly to results
@@ -44,7 +44,7 @@ async function startQuiz() {
     document.getElementById('introState').style.display = 'none';
     document.getElementById('loadingState').style.display = 'block';
     try {
-        const res = await fetch(`/api/exams/${quizId}/start/`, {method:'POST',headers:authHeaders()});
+        const res = await fetch(`/api/exams/${quizId}/start/`, {method:'POST',headers:quizAuthHeaders()});
         const data = await res.json();
         if (data.is_completed) { document.getElementById('loadingState').style.display = 'none'; showResult(data); return; }
         if (!res.ok) { alert(data.detail || 'Không thể bắt đầu làm bài.'); window.location.href = '/dashboard/'; return; }
@@ -197,7 +197,7 @@ async function submitExam(isAuto=false) {
         } else if (qType === 'short_answer') answersArr.push({quiz_question_id: qqId, answer_text: ansData.answer_text});
     }
     try {
-        const res = await fetch(`/api/exams/attempt/${attemptId}/submit/`, {method:'POST',headers:authHeaders(),body:JSON.stringify({answers:answersArr})});
+        const res = await fetch(`/api/exams/attempt/${attemptId}/submit/`, {method:'POST',headers:quizAuthHeaders(),body:JSON.stringify({answers:answersArr})});
         const data = await res.json();
         if (res.ok) showResult(data);
         else { alert(data.detail||'Lỗi nộp bài.'); if(sBtn){sBtn.disabled=false;sBtn.innerHTML='<i class="bi bi-send-check me-1"></i>Nộp bài';} }
@@ -562,7 +562,7 @@ window.explainWithAI = async function(qqId) {
     try {
         var res = await fetch('/api/ai/explain-wrong-answer/', {
             method: 'POST',
-            headers: authHeaders(),
+            headers: quizAuthHeaders(),
             body: JSON.stringify({
                 question_text: qText,
                 correct_answer: correctText,
