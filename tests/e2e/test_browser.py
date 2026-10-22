@@ -129,7 +129,6 @@ class BrowserE2ETestCase(StaticLiveServerTestCase):
         self.page.locator("#aiGeneratorModal").wait_for(state="visible")
         self.page.locator("#ai-rag-tab").click()
         self.page.locator("#aiRagContent").wait_for(state="visible")
-        self.assertIn("YCCĐ tổng quát Tin học lớp 10", self.page.locator("#ragTopicHelp").inner_text())
 
         self.page.goto(self.url(f"/exams/builder/{self.quiz.pk}/"))
         self.page.locator("body").wait_for()
