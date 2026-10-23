@@ -41,10 +41,22 @@ COGNITIVE_LEVEL_LABELS = {
     'hard': 'Vận dụng',
 }
 
-COGNITIVE_LEVEL_REQUIREMENTS = {
-    'easy': 'nhận diện khái niệm, đặc điểm hoặc dữ kiện đã học',
-    'medium': 'giải thích vai trò, phân biệt hoặc suy luận quan hệ',
-    'hard': 'đánh giá lựa chọn, thao tác, cách dùng dữ kiện hoặc kết quả theo ràng buộc',
+COGNITIVE_LEVEL_GUIDES = {
+    'easy': (
+        'nhận dạng/nhận diện tri thức nhờ nhớ lại hoặc tái hiện kiến thức, kĩ năng; '
+        'câu dẫn dạng "Phát biểu/Phương án/Mô tả nào sau đây nêu đúng ..."; '
+        'không đòi hỏi giải thích, so sánh hay áp dụng vào tình huống'
+    ),
+    'medium': (
+        'giải thích tri thức bằng phân tích, tổng hợp, so sánh, phân biệt, quy nạp để làm rõ nội hàm khái niệm '
+        'hoặc bản chất vấn đề; câu dẫn dạng "Phương án nào sau đây giải thích đúng ...", '
+        '"Phát biểu nào sau đây mô tả chính xác nhất về ..."; nhắc lại kiến thức đơn thuần là Biết, chưa phải Hiểu'
+    ),
+    'hard': (
+        'áp dụng tri thức vào bối cảnh/tình huống cụ thể để đưa ra quyết định hoặc kết quả cụ thể '
+        '(tính toán, chọn phương án xử lí, xác định kết quả chương trình...); '
+        'câu chỉ giải thích khái niệm mà không dùng dữ kiện tình huống là Hiểu, chưa phải Vận dụng'
+    ),
 }
 
 
@@ -60,16 +72,16 @@ def _build_cognitive_level_instruction(question_types: str, difficulty: str) -> 
             f'{storage_note}.'
         )
 
-    if difficulty in COGNITIVE_LEVEL_REQUIREMENTS:
+    if difficulty in COGNITIVE_LEVEL_GUIDES:
         label = COGNITIVE_LEVEL_LABELS[difficulty]
-        requirement = COGNITIVE_LEVEL_REQUIREMENTS[difficulty]
+        guide = COGNITIVE_LEVEL_GUIDES[difficulty]
         instruction = (
-            f'- Tất cả câu multiple_choice phải ở mức {label}: {requirement}. '
+            f'- Tất cả câu multiple_choice phải ở mức {label}: {guide}. '
             f'Ghi "difficulty": "{difficulty}" cho mỗi câu; không dùng mức khác.'
         )
     else:
         levels = '; '.join(
-            f'"{key}" ({COGNITIVE_LEVEL_LABELS[key]} — {COGNITIVE_LEVEL_REQUIREMENTS[key]})'
+            f'"{key}" ({COGNITIVE_LEVEL_LABELS[key]} — {COGNITIVE_LEVEL_GUIDES[key]})'
             for key in ('easy', 'medium', 'hard')
         )
         instruction = (
@@ -1042,7 +1054,7 @@ class AIGeneratorService:
         """Gắn mức nhận thức đã chọn cho câu trắc nghiệm; bỏ nhãn ở câu Đúng/Sai."""
         for item in questions:
             q_type = item.get('question_type')
-            if q_type == 'multiple_choice' and difficulty in COGNITIVE_LEVEL_REQUIREMENTS:
+            if q_type == 'multiple_choice' and difficulty in COGNITIVE_LEVEL_GUIDES:
                 item['difficulty'] = difficulty
             elif q_type in ('true_false', 'short_answer'):
                 item['difficulty'] = 'medium'

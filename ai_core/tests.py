@@ -293,6 +293,8 @@ class RAGServiceTests(SimpleTestCase):
         prompt = self.ai.generate_content.call_args.args[0]
         self.assertIn('Tất cả câu multiple_choice phải ở mức Vận dụng', prompt)
         self.assertIn('Ghi "difficulty": "hard" cho mỗi câu', prompt)
+        self.assertIn('áp dụng tri thức vào bối cảnh/tình huống cụ thể', prompt)
+        self.assertIn('câu chỉ giải thích khái niệm mà không dùng dữ kiện tình huống là Hiểu, chưa phải Vận dụng', prompt)
         self.assertNotIn('Không gắn nhãn Biết/Hiểu/Vận dụng cho câu Đúng/Sai', prompt)
 
     @patch('classes.models.Class.objects')
@@ -326,6 +328,7 @@ class RAGServiceTests(SimpleTestCase):
         prompt = self.ai.generate_content.call_args.args[0]
         self.assertIn('Mỗi câu multiple_choice gắn đúng một mức nhận thức', prompt)
         self.assertIn('"easy" (Nhận biết', prompt)
+        self.assertIn('nhắc lại kiến thức đơn thuần là Biết, chưa phải Hiểu', prompt)
         self.assertNotIn('Tất cả câu multiple_choice phải ở mức', prompt)
 
     @patch('classes.models.Class.objects')
