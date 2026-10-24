@@ -170,6 +170,18 @@ PHẠM VI:
 - Dùng YCCĐ làm mục tiêu đánh giá, SOURCE làm căn cứ kiến thức; nếu YCCĐ tổng quát chưa rõ bài đang học, đối chiếu SOURCE để chọn đúng YCCĐ liên quan trước khi kết luận thiếu thông tin.
 - Chỉ kiểm tra kiến thức bài học/SGK và YCCĐ của bài, kể cả phương án nhiễu và lời giải; phân hóa bằng nhận diện, giải thích, vận dụng kiến thức đã học; không mở rộng sang bài/lớp khác hay kiến thức chuyên sâu.
 
+TRÍCH KHÁI NIỆM CHÍNH & KIỂM TRA CHẤT LƯỢNG (BẮT BUỘC TRƯỚC KHI SINH):
+- Từ SOURCE đã chọn và YCCD, xác định khái niệm chính cần đánh giá; chỉ giữ các ý liên quan trực tiếp đến YCCD và bài học.
+- Kiểm tra chất lượng: SOURCE phải đủ dữ kiện; nếu thiếu hoặc không liên quan, trả về {{"questions": [], "reason": "..."}} thay vì sinh câu hỏi.
+- Không thêm khái niệm ngoài bài; nếu YCCD tổng quát, đối chiếu SOURCE để chọn khái niệm phù hợp.
+
+PHƯƠNG PHÁP LUẬN TẠO CÂU HỎI TÌNH HUỐNG THỰC TIỄN:
+- Bước 1: xác định khái niệm cốt lõi và năng lực cần kiểm tra.
+- Bước 2: chọn vấn đề thực tế có thể áp dụng khái niệm đó; tạo nhân vật, môi trường, mục tiêu cụ thể.
+- Bước 3: dựng bối cảnh với dữ kiện/ràng buộc/hoạt động cụ thể; mỗi chi tiết phục vụ ít nhất một nhận định.
+- Bước 4: đặt câu hỏi buộc người học vận dụng kiến thức để giải quyết; đáp án suy ra được từ kiến thức nguồn và tình huống.
+- Bước 5: tự giải độc lập từng ý/câu trước khi xuất; kiểm tra tình huống thực tế, lứa tuổi, kiến thức nguồn.
+
 XÂY DỰNG TÌNH HUỐNG:
 - Xác định kiến thức cốt lõi và năng lực cần kiểm tra TRƯỚC khi dựng bối cảnh; tìm vấn đề thực tế có thể áp dụng kiến thức đó, chọn nhân vật, môi trường, mục tiêu cụ thể rồi tạo vấn đề, hạn chế, lựa chọn hoặc mâu thuẫn cần giải quyết. Đặt câu hỏi buộc người học vận dụng kiến thức để giải quyết và bảo đảm đáp án suy ra được từ kiến thức nguồn và tình huống; không viết câu chuyện trước rồi gắn câu hỏi lý thuyết bất kì vào sau.
 - Tài liệu RAG chỉ là nguồn tri thức để xác định nội dung cần đánh giá; không mặc định dùng bối cảnh, nhân vật hoặc hoạt động (kể cả hoạt động giảng dạy) xuất hiện trong tài liệu. Tự xây dựng tình huống mới NGAY CẢ KHI SOURCE ĐÃ ĐỦ THÔNG TIN; không bắt buộc nhân vật, địa điểm, số liệu hay lĩnh vực ứng dụng xuất hiện trong RAG, không chỉ thay tên/đổi số từ ví dụ. Chi tiết giả định được sáng tạo nhưng không mâu thuẫn kiến thức nguồn, không đòi hỏi chuyên môn ngoài bài và viết thành đoạn tường thuật khách quan như đề thi, các câu liên kết tự nhiên, mỗi chi tiết phục vụ nhận định phía sau.
