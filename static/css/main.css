@@ -54,8 +54,11 @@
 /* ── 3. Base Reset & Body ─────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
+html { font-size: 18px; }
+
 body {
   font-family: var(--font-sans);
+  font-size: 1rem;
   background-color: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
