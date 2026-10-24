@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Thông tin cá nhân – Nguyễn Văn Huyên Learning{% endblock %}
-{% block content %}
+{% block content %}<div class="app-shell">
+{% include 'components/app_sidebar.html' %}
+<div class="app-main">
 <div class="container py-4" style="max-width:900px;">
     <div class="mb-4">
         <h1 style="font-size:1.6rem; font-weight:800; margin:0;">
@@ -85,6 +87,8 @@
             </div>
         </div>
     </div>
+</div>
+</div>
 </div>
 {% endblock %}
 

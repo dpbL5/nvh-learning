@@ -1,19 +1,31 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 
+from accounts.authentication import CookieJWTAuthentication
+
+
+def _is_authenticated(request):
+    try:
+        result = CookieJWTAuthentication().authenticate(request)
+    except Exception:
+        return False
+    return bool(result and result[0].is_authenticated)
+
 
 def home_view(request):
+    if request.user.is_authenticated or _is_authenticated(request):
+        return redirect('dashboard')
     return render(request, 'home.html')
 
 
 def login_view(request):
-    if request.user.is_authenticated:
+    if request.user.is_authenticated or _is_authenticated(request):
         return redirect('dashboard')
     return render(request, 'login.html')
 
 
 def register_view(request):
-    if request.user.is_authenticated:
+    if request.user.is_authenticated or _is_authenticated(request):
         return redirect('dashboard')
     return render(request, 'register.html')
 

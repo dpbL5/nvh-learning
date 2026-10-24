@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Ngân hàng câu hỏi – Nguyễn Văn Huyên Learning{% endblock %}
-{% block content %}
+{% block content %}<div class="app-shell">
+{% include 'components/app_sidebar.html' %}
+<div class="app-main">
+
 <div class="container py-4">
     <!-- Header -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -112,6 +115,9 @@
 </div>
 
 {% include 'components/ai_generator_modal.html' %}
+
+</div>
+</div>
 {% endblock %}
 
 {% block scripts %}

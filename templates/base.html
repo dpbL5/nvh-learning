@@ -35,25 +35,24 @@
 <body>
 
 <!-- ── Navbar ───────────────────────────────────────────── -->
-<nav class="nvh-navbar" id="mainNavbar">
-    <div class="container-fluid d-flex align-items-center gap-3">
-        <!-- Brand -->
-        <a class="navbar-brand" href="/">
-            <img src="{% static 'images/logo.png' %}" alt="Logo" style="height: 32px; margin-right: 10px; border-radius: 6px;">
-            <span>Nguyễn Văn Huyên Learning</span>
+{% block navbar %}
+<nav class="app-nav" id="mainNavbar" aria-label="Điều hướng chính">
+    <div class="app-nav__inner">
+        <a class="app-brand" href="/" aria-label="Nguyễn Văn Huyên Learning – Trang chủ">
+            <img class="app-brand__logo" src="{% static 'images/logo.png' %}" alt="" width="44" height="44">
+            <span class="app-brand__text">
+                <strong class="app-brand__name">Nguyễn Văn Huyên</strong>
+                <span class="app-brand__sub">Learning</span>
+            </span>
         </a>
 
-        <!-- Auth Links (updated by JS) -->
-        <div class="ms-auto d-flex align-items-center gap-2" id="navAuthLinks">
-            <a href="/login/" class="nav-btn">
-                <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
-            </a>
-            <a href="/register/" class="nav-btn nav-btn-solid">
-                <i class="bi bi-person-plus"></i> Đăng ký
-            </a>
+        <!-- Auth links and navigation are filled by base.js once the role is known. -->
+        <div class="app-nav__auth" id="navAuthLinks">
+            <a href="/login/" class="nav-btn"><i class="bi bi-box-arrow-in-right"></i> Đăng nhập</a>
         </div>
     </div>
 </nav>
+{% endblock %}
 
 <!-- ── Global Notifications (Bottom Right) ──────────────── -->
 <div id="globalAlert" style="position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column-reverse; gap:10px; pointer-events:none; min-width:320px; max-width:420px;"></div>

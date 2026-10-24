@@ -46,6 +46,8 @@
         document.getElementById('profileAvatarUrl').value = user.avatar_url || '';
         renderAvatar(user);
         renderHeader(user);
+        if (typeof updateNavbarUI === 'function') updateNavbarUI(user);
+        if (typeof updateAppShell === 'function') updateAppShell(user);
 
         document.getElementById('profileAvatarUrl').addEventListener('input', (e) => {
             renderAvatar({ ...user, avatar_url: e.target.value.trim() });
@@ -73,6 +75,7 @@
                 }
                 localStorage.setItem('user_profile', JSON.stringify(data));
                 updateNavbarUI(data);
+                if (typeof updateAppShell === 'function') updateAppShell(data);
                 renderAvatar(data);
                 renderHeader(data);
                 showGlobalAlert('Đã cập nhật thông tin cá nhân.');

@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Bảng điều khiển – Nguyễn Văn Huyên Learning{% endblock %}
-{% block content %}
+{% block content %}<div class="app-shell">
+{% include 'components/app_sidebar.html' %}
+<div class="app-main">
+
 <div class="container py-4">
     <!-- Loading State -->
     <div id="loadingPlaceholder" class="text-center py-5">
@@ -165,4 +168,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{% static 'js/dashboard.js' %}"></script>
+
+</div>
+</div>
 {% endblock %}

@@ -147,11 +147,17 @@ window.updateNavbarUI = function(user) {
     if (!navAuthLinks || !user) return;
 
     const initials = ((user.last_name || '')[0] || '') + ((user.first_name || '')[0] || user.username[0] || '');
-    const navLinks = [
-        { href: '/dashboard/', icon: 'bi-speedometer2', label: 'Bảng điều khiển' },
-    ];
-    if (user.role?.name !== 'student') {
-        navLinks.push({ href: '/exams/question-bank/', icon: 'bi-bank2', label: 'Ngân hàng câu hỏi' });
+    const role = user.role?.name;
+    // Teacher/admin shell pages carry dashboard + question bank in the sidebar; everywhere else
+    // those links stay in the top bar so navigation never dead-ends.
+    const hasSidebarShell = Boolean(document.querySelector('.app-shell'));
+    const useTopNav = role === 'student' || !hasSidebarShell;
+    const navLinks = [];
+    if (useTopNav) {
+        navLinks.push({ href: '/dashboard/', icon: 'bi-speedometer2', label: 'Bảng điều khiển' });
+        if (role !== 'student') {
+            navLinks.push({ href: '/exams/question-bank/', icon: 'bi-bank2', label: 'Ngân hàng câu hỏi' });
+        }
     }
 
     navAuthLinks.innerHTML = `
@@ -177,11 +183,49 @@ window.updateNavbarUI = function(user) {
     `;
 };
 
+// Teacher/admin pages with an app shell get the sidebar; students never see it.
+window.updateAppShell = function(user) {
+    const shell = document.querySelector('.app-shell');
+    const sidebar = document.getElementById('appSidebar');
+    if (!shell || !sidebar) return;
+    const role = user?.role?.name;
+    if (role !== 'teacher' && role !== 'admin') return;
+
+    sidebar.hidden = false;
+    shell.classList.add('has-sidebar');
+    sidebar.querySelectorAll('[data-admin-only]').forEach(el => { el.hidden = role !== 'admin'; });
+
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    const active = path === '/dashboard' ? 'dashboard'
+        : path === '/exams/question-bank' ? 'question-bank'
+            : path === '/admin-panel' ? 'admin' : '';
+    sidebar.querySelectorAll('[data-nav]').forEach(el => {
+        const on = !el.hidden && el.dataset.nav === active;
+        el.classList.toggle('is-active', on);
+        if (on) el.setAttribute('aria-current', 'page');
+        else el.removeAttribute('aria-current');
+    });
+};
+
 // Flash from sessionStorage
 document.addEventListener('DOMContentLoaded', async () => {
     if (!localStorage.getItem('auth_hint')) {
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
+    } else if (window.location.pathname === '/') {
+        // Logged-in users should land in their workspace, not the marketing page.
+        try {
+            const cached = JSON.parse(localStorage.getItem('user_profile') || 'null');
+            if (cached) {
+                window.location.replace('/dashboard/');
+                return;
+            }
+        } catch (e) { /* ignore malformed cache */ }
+        // Fall back to auth hint presence so a missing/stale cache still redirects.
+        if (localStorage.getItem('auth_hint')) {
+            window.location.replace('/dashboard/');
+            return;
+        }
     }
 
     const _alert = sessionStorage.getItem('globalAlert');
@@ -194,7 +238,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update navbar if logged in
     const user = await getCurrentUser(true);
     if (user) {
+        if (window.location.pathname === '/') {
+            window.location.replace('/dashboard/');
+            return;
+        }
         updateNavbarUI(user);
+        updateAppShell(user);
         setupNotificationPolling();
     }
 });

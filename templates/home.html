@@ -1,197 +1,138 @@
 {% extends 'base.html' %}
-{% block title %}Nguyễn Văn Huyên Learning – Nền tảng ôn thi thông minh{% endblock %}
+{% load static %}
+{% block title %}Ôn thi Tin học THPT – Nguyễn Văn Huyên Learning{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/landing.css' %}">{% endblock %}
+
+
+
 {% block content %}
+<div class="landing-page">
+    <section class="landing-hero">
+        <div class="landing-hero__rings" aria-hidden="true"></div>
 
-<!-- Hero Section -->
-<section class="hero-section">
-    <div class="hero-bg">
-        <div class="hero-blob hero-blob-1"></div>
-        <div class="hero-blob hero-blob-2"></div>
-        <div class="hero-blob hero-blob-3"></div>
-    </div>
-    <div class="container position-relative" style="z-index:1;">
-        <div class="row align-items-center g-5">
-            <div class="col-lg-6">
-                <div class="hero-badge animate-in">
-                    <i class="bi bi-stars"></i> Nền tảng học tập thế hệ mới
-                </div>
-                <h1 class="hero-title animate-in animate-in-delay-1">
-                    Ôn thi thông minh<br>tích hợp <span class="highlight">AI trợ giảng</span>
-                </h1>
-                <p class="hero-subtitle animate-in animate-in-delay-2">
-                    Nguyễn Văn Huyên Learning giúp giáo viên tạo đề thi AI, theo dõi tiến độ lớp học và cung cấp phân tích điểm yếu cho từng học sinh một cách chính xác và hiệu quả.
-                </p>
-                <div class="hero-cta-group animate-in animate-in-delay-3">
-                    <a href="/register/" class="hero-cta-primary">
-                        <i class="bi bi-rocket-takeoff-fill"></i> Bắt đầu miễn phí
+        <div class="landing-hero__inner">
+            <div class="landing-hero__copy">
+                <p class="landing-badge"><i class="bi bi-mortarboard-fill" aria-hidden="true"></i> Ôn thi tốt nghiệp THPT môn Tin học</p>
+                <h1 class="landing-title">Ôn thi Tin học thông minh<br><span>Cùng trợ giảng AI</span></h1>
+                <p class="landing-lead">Luyện tập theo chủ đề, tạo và giao đề, phân tích kết quả để ôn tập hiệu quả.</p>
+                <div class="landing-actions">
+                    <a class="landing-btn landing-btn--primary" href="/register/">
+                        <i class="bi bi-play-fill" aria-hidden="true"></i> Bắt đầu ôn tập
                     </a>
-                    <a href="/login/" class="hero-cta-secondary">
-                        <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
+                    <a class="landing-btn landing-btn--ghost" href="/exams/question-bank/">
+                        <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Khám phá chủ đề
                     </a>
                 </div>
             </div>
-            <div class="col-lg-6 d-none d-lg-flex justify-content-center animate-in animate-in-delay-2">
-                <!-- Visual illustration cards -->
-                <div style="position:relative; width:380px; height:340px;">
-                    <!-- Floating card 1 -->
-                    <div class="shadow-md" style="position:absolute; top:0; left:0; width:220px; background:#fff; border-radius:16px; padding:1.25rem; border:1px solid var(--color-border); animation: float1 5s ease-in-out infinite;">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <div style="width:32px;height:32px;border-radius:8px;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;color:var(--color-primary);"><i class="bi bi-cpu-fill"></i></div>
-                            <span style="font-size:0.8rem;font-weight:700;color:var(--color-text);">AI Tạo đề thi</span>
-                        </div>
-                        <div style="height:6px;border-radius:999px;background:var(--color-border);overflow:hidden;"><div style="height:100%;width:75%;background:linear-gradient(90deg,var(--color-primary),var(--color-secondary));border-radius:999px;"></div></div>
-                        <div style="font-size:0.72rem;color:var(--color-muted);margin-top:0.5rem;">Đang tạo 30 câu hỏi...</div>
+
+            <div class="landing-visual" aria-hidden="true">
+                <div class="lv-db">
+                    <svg viewBox="0 0 80 84" role="presentation">
+                        <ellipse cx="40" cy="14" rx="26" ry="10" fill="#c4b1ff"/>
+                        <path d="M14 14v20c0 5.5 11.6 10 26 10s26-4.5 26-10V14" fill="#8b5cf6"/>
+                        <ellipse cx="40" cy="34" rx="26" ry="10" fill="#a78bfa"/>
+                        <path d="M14 34v20c0 5.5 11.6 10 26 10s26-4.5 26-10V34" fill="#6d3bf5"/>
+                        <ellipse cx="40" cy="54" rx="26" ry="10" fill="#8b5cf6"/>
+                    </svg>
+                </div>
+
+                <div class="lv-card lv-card--ai">
+                    <div class="lv-card__head">
+                        <span class="lv-icon lv-icon--violet"><i class="bi bi-file-earmark-text"></i></span>
+                        <span class="lv-sparkle"><i class="bi bi-stars"></i></span>
                     </div>
-                    <!-- Floating card 2 -->
-                    <div class="shadow-md" style="position:absolute; top:80px; right:0; width:210px; background:#fff; border-radius:16px; padding:1.25rem; border:1px solid var(--color-border); animation: float2 5s ease-in-out infinite 1.5s;">
-                        <div style="font-size:0.75rem;font-weight:700;color:var(--color-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.05em;">Điểm lớp 12A1</div>
-                        <div class="d-flex gap-1 align-items-end" style="height:60px;">
-                            <div style="flex:1;background:var(--color-primary-light);border-radius:4px 4px 0 0;height:40%;"></div>
-                            <div style="flex:1;background:var(--color-primary);border-radius:4px 4px 0 0;height:70%;"></div>
-                            <div style="flex:1;background:var(--color-primary-light);border-radius:4px 4px 0 0;height:55%;"></div>
-                            <div style="flex:1;background:var(--color-secondary);border-radius:4px 4px 0 0;height:85%;"></div>
-                            <div style="flex:1;background:var(--color-primary-light);border-radius:4px 4px 0 0;height:60%;"></div>
-                        </div>
+                    <p class="lv-card__title">AI tạo đề Tin học</p>
+                    <p>Trắc nghiệm · Đúng/Sai</p>
+                    <div class="lv-skeleton"><span></span><span></span><span></span></div>
+                </div>
+
+                <div class="lv-card lv-card--result">
+                    <p class="lv-card__title"><i class="bi bi-bar-chart-fill"></i> Kết quả theo chủ đề</p>
+                    <div class="lv-bars">
+                        <div class="lv-bar"><span>Mạng máy tính</span><span class="lv-bar__track"><span class="lv-bar__fill" style="width: 74%"></span></span></div>
+                        <div class="lv-bar"><span>Cơ sở dữ liệu</span><span class="lv-bar__track"><span class="lv-bar__fill" style="width: 88%"></span></span></div>
+                        <div class="lv-bar"><span>HTML</span><span class="lv-bar__track"><span class="lv-bar__fill" style="width: 58%"></span></span></div>
                     </div>
-                    <!-- Floating card 3 -->
-                    <div class="shadow-md" style="position:absolute; bottom:0; left:20px; width:250px; background:#fff; border-radius:16px; padding:1.25rem; border:1px solid var(--color-border); animation: float1 6s ease-in-out infinite 2s;">
-                        <div class="d-flex gap-2 mb-1">
-                            <div style="width:28px;height:28px;border-radius:50%;background:var(--color-success-light);display:flex;align-items:center;justify-content:center;color:var(--color-success);font-size:0.8rem;"><i class="bi bi-check2"></i></div>
-                            <div>
-                                <div style="font-size:0.78rem;font-weight:700;">student_khoa</div>
-                                <div style="font-size:0.68rem;color:var(--color-muted);">Đã nộp bài • 8.5 điểm</div>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2 mb-1">
-                            <div style="width:28px;height:28px;border-radius:50%;background:var(--color-warning-light);display:flex;align-items:center;justify-content:center;color:var(--color-warning);font-size:0.8rem;"><i class="bi bi-clock"></i></div>
-                            <div>
-                                <div style="font-size:0.78rem;font-weight:700;">student_linh</div>
-                                <div style="font-size:0.68rem;color:var(--color-muted);">Đang làm bài...</div>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <div style="width:28px;height:28px;border-radius:50%;background:var(--color-success-light);display:flex;align-items:center;justify-content:center;color:var(--color-success);font-size:0.8rem;"><i class="bi bi-check2"></i></div>
-                            <div>
-                                <div style="font-size:0.78rem;font-weight:700;">student_minh</div>
-                                <div style="font-size:0.68rem;color:var(--color-muted);">Đã nộp bài • 7.0 điểm</div>
-                            </div>
-                        </div>
+                </div>
+
+                <div class="lv-laptop">
+                    <svg viewBox="0 0 420 280" role="presentation">
+                        <defs>
+                            <linearGradient id="lv-screen" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#3a2270"/>
+                                <stop offset="100%" stop-color="#7a4bff"/>
+                            </linearGradient>
+                        </defs>
+                        <ellipse cx="210" cy="262" rx="158" ry="12" fill="rgba(57,32,120,.12)"/>
+                        <path d="M66 30h288a12 12 0 0 1 12 12v166H54V42a12 12 0 0 1 12-12Z" fill="#2a1a52"/>
+                        <rect x="68" y="44" width="284" height="150" rx="4" fill="url(#lv-screen)"/>
+                        <text x="210" y="136" text-anchor="middle" font-family="Inter, monospace" font-size="46" font-weight="700" fill="#fff">&lt;/&gt;</text>
+                        <rect x="98" y="166" width="70" height="6" rx="3" fill="rgba(255,255,255,.35)"/>
+                        <path d="M40 208h340l20 28a9 9 0 0 1-7.4 14H27.4a9 9 0 0 1-7.4-14Z" fill="#ece7fa"/>
+                        <path d="M40 208h340l8 12H32Z" fill="#ded7f3"/>
+                        <rect x="176" y="212" width="68" height="5" rx="2.5" fill="#cfc6ec"/>
+                    </svg>
+                </div>
+
+                <div class="lv-card lv-card--tip">
+                    <span class="lv-icon lv-icon--amber"><i class="bi bi-lightbulb-fill"></i></span>
+                    <div class="lv-tip-body">
+                        <p class="lv-card__title">Gợi ý ôn tập <i class="bi bi-chevron-right"></i></p>
+                        <p><strong>Luyện thêm:</strong> Chia sẻ tài nguyên mạng LAN</p>
                     </div>
+                </div>
+
+                <span class="lv-code">&lt;/&gt;</span>
+
+                <div class="lv-network">
+                    <svg viewBox="0 0 140 92" fill="none" stroke="#8f7cc4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" role="presentation">
+                        <rect x="50" y="4" width="40" height="27" rx="4" fill="#fff"/>
+                        <rect x="55" y="9" width="30" height="15" rx="2" fill="#efe8ff" stroke="none"/>
+                        <path d="M70 31v14M56 45h56M56 45v13M112 45v13"/>
+                        <rect x="38" y="58" width="36" height="24" rx="3" fill="#fff"/>
+                        <rect x="43" y="63" width="26" height="12" rx="1.5" fill="#efe8ff" stroke="none"/>
+                        <path d="M47 82h18M56 82v5M47 87h18"/>
+                        <rect x="94" y="58" width="36" height="24" rx="3" fill="#fff"/>
+                        <rect x="99" y="63" width="26" height="12" rx="1.5" fill="#efe8ff" stroke="none"/>
+                        <path d="M103 82h18M112 82v5M103 87h18"/>
+                        <circle cx="70" cy="45" r="2.5" fill="#8f7cc4" stroke="none"/>
+                    </svg>
                 </div>
             </div>
         </div>
 
-        <!-- Stats Bar -->
-        <div class="stats-bar mt-5 animate-in animate-in-delay-4">
-            <div class="row g-0 align-items-center">
-                <div class="col-md-3 col-6 mb-3 mb-md-0">
-                    <div class="stat-item">
-                        <div class="stat-num">500+</div>
-                        <div class="stat-label">Học sinh đang học</div>
+        <div class="landing-strip-wrap">
+            <section class="landing-strip" aria-label="Lợi ích khi ôn tập cùng Nguyễn Văn Huyên Learning">
+                <article class="landing-feature">
+                    <span class="landing-feature__icon" aria-hidden="true"><i class="bi bi-book"></i></span>
+                    <div>
+                        <h2 class="landing-feature__title">Ôn tập theo chủ đề</h2>
+                        <p class="landing-feature__copy">Hệ thống kiến thức bám sát đề thi tốt nghiệp THPT.</p>
                     </div>
-                </div>
-                <div class="col-md-3 col-6 border-start-md mb-3 mb-md-0">
-                    <div class="stat-item">
-                        <div class="stat-num">1,200+</div>
-                        <div class="stat-label">Câu hỏi trong hệ thống</div>
+                </article>
+                <article class="landing-feature">
+                    <span class="landing-feature__icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+                    <div>
+                        <h2 class="landing-feature__title">Luyện đề tổng hợp</h2>
+                        <p class="landing-feature__copy">Đa dạng đề thi, giúp làm quen cấu trúc và rèn kỹ năng.</p>
                     </div>
-                </div>
-                <div class="col-md-3 col-6 border-start-md">
-                    <div class="stat-item">
-                        <div class="stat-num">50+</div>
-                        <div class="stat-label">Giáo viên sử dụng</div>
+                </article>
+                <article class="landing-feature">
+                    <span class="landing-feature__icon" aria-hidden="true"><i class="bi bi-bar-chart-fill"></i></span>
+                    <div>
+                        <h2 class="landing-feature__title">Phân tích kết quả</h2>
+                        <p class="landing-feature__copy">Thống kê chi tiết theo từng chủ đề để ôn tập đúng trọng tâm.</p>
                     </div>
-                </div>
-                <div class="col-md-3 col-6 border-start-md">
-                    <div class="stat-item">
-                        <div class="stat-num">AI</div>
-                        <div class="stat-label">Tích hợp OpenAI</div>
+                </article>
+                <article class="landing-feature">
+                    <span class="landing-feature__icon" aria-hidden="true"><i class="bi bi-robot"></i></span>
+                    <div>
+                        <h2 class="landing-feature__title">Trợ giảng AI</h2>
+                        <p class="landing-feature__copy">Hỗ trợ giải thích, gợi ý ôn tập và cá nhân hoá lộ trình học.</p>
                     </div>
-                </div>
-            </div>
+                </article>
+            </section>
         </div>
-    </div>
-</section>
-
-<!-- Features Section -->
-<section class="py-5" style="background: var(--color-surface); border-top: 1px solid var(--color-border);">
-    <div class="container">
-        <div class="text-center mb-5">
-            <div class="hero-badge mx-auto d-inline-flex mb-3"><i class="bi bi-grid-3x3-gap-fill"></i> Tính năng nổi bật</div>
-            <h2 style="font-size:2rem; font-weight:800; letter-spacing:-0.03em;">Mọi thứ bạn cần để dạy và học hiệu quả</h2>
-            <p class="text-muted mt-2">Được thiết kế dành riêng cho giáo viên và học sinh trường THPT.</p>
-        </div>
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap" style="background:var(--color-primary-light);color:var(--color-primary)"><i class="bi bi-pencil-square"></i></div>
-                    <h5 style="font-weight:700;margin-bottom:0.5rem;">Luyện tập & Thi thử</h5>
-                    <p class="text-muted small mb-0">Làm bài theo chủ đề hoặc đề thi mẫu với bộ đếm giờ. Kết quả được phân tích ngay lập tức.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap" style="background:var(--color-success-light);color:var(--color-success)"><i class="bi bi-robot"></i></div>
-                    <h5 style="font-weight:700;margin-bottom:0.5rem;">AI Tạo đề thông minh</h5>
-                    <p class="text-muted small mb-0">Giáo viên upload tài liệu, AI tự động tạo câu hỏi trắc nghiệm chính xác trong vài giây.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap" style="background:var(--color-warning-light);color:var(--color-warning)"><i class="bi bi-bar-chart-fill"></i></div>
-                    <h5 style="font-weight:700;margin-bottom:0.5rem;">Phân tích lỗ hổng kiến thức</h5>
-                    <p class="text-muted small mb-0">Hệ thống phát hiện điểm yếu của cả lớp, gửi báo cáo chi tiết cho giáo viên để điều chỉnh giảng dạy.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- ── Footer ────────────────────────────────────────────── -->
-<footer class="nvh-footer">
-    <div class="container py-2">
-        <div class="row g-4 mb-3">
-            <div class="col-md-3">
-                <div class="footer-brand">
-                    <i class="bi bi-mortarboard"></i>
-                    Nguyễn Văn Huyên Learning
-                </div>
-                <p class="footer-desc">Nền tảng ôn thi thông minh với AI trợ giảng. Giúp giáo viên tạo đề thi và học sinh luyện tập hiệu quả.</p>
-            </div>
-            <div class="col-md-3">
-                <div class="footer-section-title">Tính năng</div>
-                <a href="/dashboard/" class="footer-link">Bảng điều khiển</a>
-                <a href="#" class="footer-link">Ngân hàng câu hỏi</a>
-                <a href="#" class="footer-link">Các đề thi</a>
-                <a href="#" class="footer-link">Luyện tập</a>
-            </div>
-            <div class="col-md-3">
-                <div class="footer-section-title">Cho Giáo viên</div>
-                <a href="#" class="footer-link">Tạo lớp học</a>
-                <a href="#" class="footer-link">Tạo đề thi AI</a>
-                <a href="#" class="footer-link">Quản lý học sinh</a>
-                <a href="#" class="footer-link">Xem phân tích</a>
-            </div>
-            <div class="col-md-3">
-                <div class="footer-section-title">Hỗ trợ</div>
-                <a href="#" class="footer-link">Hướng dẫn sử dụng</a>
-                <a href="#" class="footer-link">Câu hỏi thường gặp</a>
-                <a href="#" class="footer-link">Liên hệ chúng tôi</a>
-                <a href="#" class="footer-link">Chính sách bảo mật</a>
-            </div>
-        </div>
-        <div class="nvh-footer-divider"></div>
-        <div class="nvh-footer-bottom">
-            <div class="footer-copyright">
-                <p class="mb-0">© 2026 Nguyễn Văn Huyên Learning. Tất cả quyền được bảo lưu.</p>
-            </div>
-            <div class="footer-social">
-                <a href="#" title="Facebook"><i class="bi bi-facebook"></i></a>
-                <a href="#" title="Instagram"><i class="bi bi-instagram"></i></a>
-                <a href="#" title="Email"><i class="bi bi-envelope"></i></a>
-            </div>
-        </div>
-    </div>
-</footer>
-
+    </section>
+</div>
 {% endblock %}
