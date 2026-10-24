@@ -296,7 +296,7 @@ function renderQuestions() {
                                 </div>` : ''}
                                 <div>
                                     ${TYPE_LBL[q.question_type || 'multiple_choice']}
-                                    ${DIFF_LBL[q.difficulty || 'medium']}
+                                    ${q.question_type === 'true_false' ? '' : DIFF_LBL[q.difficulty || 'medium']}
                                     <span class="badge bg-light text-muted border border-secondary border-opacity-25 ms-1">${escapeHtml(subName)}</span>
                                     ${reviewBadge}
                                 </div>

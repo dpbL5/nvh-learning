@@ -374,7 +374,7 @@ function renderSelectedQuestions() {
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="qb-q-number">Câu ${idx + 1}</span>
                     ${typeBadge(q.question_type)}
-                    ${diffBadge(q.difficulty)}
+                    ${q.question_type === 'true_false' ? '' : diffBadge(q.difficulty)}
                     <span class="badge bg-light text-primary border ms-1" style="font-size:0.75rem">
                         <i class="bi bi-star-fill me-1 text-warning"></i>${qq.points} điểm
                     </span>
