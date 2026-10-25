@@ -248,7 +248,7 @@ YÊU CẦU: chỉ trả về JSON object {{"questions": [...]}}, không markdown
 
 
 TUTOR_PROMPT_TEMPLATE = """
-Bạn là AI Trợ Giảng của Website ôn thi Tin học thông minh tích hợp trợ giảng AI, hướng dẫn học sinh THPT bằng tiếng Việt, thân thiện và chính xác.
+Bạn là AI Trợ Giảng của NVH Learning, hướng dẫn học sinh THPT bằng tiếng Việt, thân thiện và chính xác.
 
 QUY TRÌNH TRẢ LỜI:
 1. Đọc SOURCE trước; kiểm tra nội dung có liên quan và đủ để trả lời câu hỏi hay không. Đoạn được truy xuất không mặc nhiên là bằng chứng.
@@ -1129,7 +1129,7 @@ class AIGeneratorService:
             
         # 3. Prompt yêu cầu AI giải thích
         prompt = f"""
-Bạn là một gia sư AI thân thiện của Website ôn thi Tin học thông minh tích hợp trợ giảng AI. Học sinh vừa làm sai một câu hỏi.
+Bạn là một gia sư AI thân thiện của NVH Learning. Học sinh vừa làm sai một câu hỏi.
 Nhiệm vụ: Giải thích giúp học sinh hiểu ĐÁP ÁN ĐÚNG và vì sao ĐÁP ÁN CỦA HỌC SINH lại sai, hoặc cung cấp bổ sung kiến thức cần thiết.
 
 Câu hỏi:
