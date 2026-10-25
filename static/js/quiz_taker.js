@@ -521,19 +521,28 @@ window.explainWithAI = async function(qqId) {
     var studentAns = window.quizResultData.answers.filter(function(a) { return a.quiz_question === qqId; });
     
     var qText = q.question_text || '';
-    if (q.context) qText += '\nNgữ cảnh: ' + q.context;
+    if (q.context) qText += '\\nNgữ cảnh: ' + q.context;
     
-    var stemText = (q.content_json || []).filter(function(b) { return b.type==='text'; }).map(function(b) { return b.value; }).join(' ');
-    qText += '\nCâu hỏi: ' + stemText;
+    var stemText = (q.text || '').trim();
+    if (!stemText) {
+        stemText = (q.content_json || []).filter(function(b) { return b.type==='text'; }).map(function(b) { return b.value; }).join(' ');
+    }
+    qText += '\\nCâu hỏi: ' + stemText;
     
     var correctText = '';
     var studentText = '';
     
+    function optionText(opt) {
+        var t = (opt.text || '').trim();
+        if (t) return t;
+        return (opt.content_json || []).filter(function(b){return b.type==='text'}).map(function(b){return b.value}).join(' ');
+    }
+    
     if (q.question_type === 'multiple_choice') {
         var keys = ['A','B','C','D'];
         q.options.forEach(function(opt, oi) {
-            var optText = (opt.content_json || []).filter(function(b){return b.type==='text'}).map(function(b){return b.value}).join(' ');
-            qText += '\n' + keys[oi] + '. ' + optText;
+            var optText = optionText(opt);
+            qText += '\\n' + keys[oi] + '. ' + optText;
             if (opt.is_correct) correctText = keys[oi] + '. ' + optText;
             
             var isStudent = studentAns[0] && studentAns[0].selected_option === opt.id;
@@ -542,16 +551,16 @@ window.explainWithAI = async function(qqId) {
         if (!studentText) studentText = '(Bỏ trống)';
     } else if (q.question_type === 'true_false') {
         q.options.forEach(function(opt, i) {
-            var optText = (opt.content_json || []).filter(function(b){return b.type==='text'}).map(function(b){return b.value}).join(' ');
-            qText += '\n' + String.fromCharCode(97+i) + ') ' + optText;
-            correctText += String.fromCharCode(97+i) + ') ' + optText + ' -> ' + (opt.is_correct ? 'Đúng' : 'Sai') + '\n';
+            var optText = optionText(opt);
+            qText += '\\n' + String.fromCharCode(97+i) + ') ' + optText;
+            correctText += String.fromCharCode(97+i) + ') ' + optText + ' -> ' + (opt.is_correct ? 'Đúng' : 'Sai') + '\\n';
             
             var ans = studentAns.find(function(a){return a.selected_option === opt.id;});
             if (ans) {
                 var studentChoseCorrect = (ans.is_correct === opt.is_correct) ? opt.is_correct : !opt.is_correct;
-                studentText += String.fromCharCode(97+i) + ') ' + optText + ' -> ' + (studentChoseCorrect ? 'Đúng' : 'Sai') + '\n';
+                studentText += String.fromCharCode(97+i) + ') ' + optText + ' -> ' + (studentChoseCorrect ? 'Đúng' : 'Sai') + '\\n';
             } else {
-                studentText += String.fromCharCode(97+i) + ') (Bỏ trống)\n';
+                studentText += String.fromCharCode(97+i) + ') (Bỏ trống)\\n';
             }
         });
     } else if (q.question_type === 'short_answer') {

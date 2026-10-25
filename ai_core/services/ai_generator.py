@@ -130,6 +130,7 @@ QUY TẮC NHÃN & ĐỊNH DẠNG:
 - `**văn bản**`: Chữ in đậm. `<u>văn bản</u>`: Đáp án (gạch chân). `[IMG:sha256]`: Hình ảnh.
 - TUYỆT ĐỐI KHÔNG để nhãn "A.", "B.", "a)", "b)"... vào nội dung `text` của question hay option.
 - Nếu thấy bảng đáp án ở cuối, hãy dùng nó để gán `is_correct`.
+- Các phương án nhiễu (sai) của câu trắc nghiệm KHÔNG được chứa các từ: "chỉ", "chỉ có thể", "không thể". Các nhận định của câu Đúng/Sai cũng KHÔNG được chứa các từ đó.
 
 VÍ DỤ TRÍCH XUẤT (CÓ HÌNH ẢNH):
 SOURCE:
@@ -202,6 +203,7 @@ CẤU TRÚC:
 
 1. multiple_choice (4 lựa chọn):
    - Đúng 4 phương án A, B, C, D; CHỈ DUY NHẤT 1 đáp án đúng (is_correct: true), không được tất cả đúng hoặc tất cả sai. Phương án cùng loại đối tượng/kết quả, cấu trúc và độ dài tương xứng, kết thúc bằng dấu chấm; giữ nguyên cú pháp và giá trị phương án là mã/lệnh/dữ liệu.
+    - Các phương án nhiễu (sai) KHÔNG được chứa các từ: "chỉ", "chỉ có thể", "không thể" (và các biến thể tương đương).
    - Câu dẫn ngắn, đủ dữ kiện, không cho sẵn công thức/quy tắc đang kiểm tra; BẮT BUỘC hỏi dạng lựa chọn: "Phương án nào sau đây nêu đúng ...?", "Phát biểu nào sau đây đúng về ...?", "Nhận định nào dưới đây mô tả đúng ...?" hoặc tương đương phù hợp nội dung. KHÔNG xuất câu hỏi mở như "... là gì?", "... có vai trò gì?", "... diễn ra như thế nào?", "Vì sao ...?", "Hãy giải thích ..."; nếu có, viết lại thành câu lựa chọn giữ nguyên kiến thức và mức nhận thức, rồi rà soát `text` trước khi xuất.
    - Phân hóa bằng nhiệm vụ phù hợp mức nhận thức của câu (nhận diện, giải thích, vận dụng); không tăng khó bằng câu dài, mẹo, thuật ngữ ngoài bài/lớp hay kiến thức chuyên môn của bối cảnh.
    - Xác định đáp án đúng và ba sai lầm hợp lí trước khi viết phương án; nhiễu cùng nhóm khái niệm, phản ánh hiểu sai cụ thể, ít nhất hai nhiễu đủ hấp dẫn. Không để đáp án đúng nổi bật bởi độ dài, không dùng nhiễu vô lí/trùng nhau/từ cực đoan; nếu không có ba nhiễu tốt thì đổi câu dẫn. Phân bố vị trí đáp án đúng cân đối, tránh chuỗi dễ đoán; khi hoán đổi phải cập nhật lời giải.
@@ -216,6 +218,7 @@ CẤU TRÚC:
    - Các ý vẫn đa dạng thao tác tư duy: nhận diện khái niệm/đặc điểm qua dữ kiện, giải thích vai trò/phân biệt/suy luận quan hệ, đánh giá lựa chọn/thao tác/cách dùng dữ kiện hay kết quả theo ràng buộc; sắp ý theo mạch của tình huống. Không viết câu chung chung như "Hệ thống giúp nâng cao hiệu quả" hay "Cần bảo đảm dữ liệu chính xác".
    - Bối cảnh đủ dữ kiện để kết hợp với kiến thức đã học kết luận rõ cả bốn ý; không lấy "không được đề cập" làm căn cứ đánh dấu Sai; các ý khai thác khía cạnh khác nhau, không lặp một suy luận bốn lần. Nêu rõ điều kiện làm thay đổi đáp án (thời điểm, dữ liệu được dùng, quyền truy cập, đầu vào/đầu ra, cấu hình...) ngay trong bối cảnh hoặc ý hỏi, không chỉ thêm vào lời giải; tránh phủ định kép và từ đánh giá không có tiêu chí.
    - Ý Sai viết từ nhầm lẫn kiến thức hoặc phương án xử lí sai có cơ sở trong tình huống; không làm sai bằng chi tiết vô lí, chơi chữ hay chèn "luôn luôn/duy nhất"; không tạo độ khó bằng thuật ngữ ngoài bài. KIỂM TRA NHỚ LẠI: với từng ý, xác định kiến thức học sinh phải tự nhớ mà bối cảnh không cung cấp; nếu chỉ đọc/chép/đối chiếu câu chữ trong bối cảnh là trả lời được thì bỏ phần lý thuyết làm lộ đáp án hoặc viết lại ý hỏi.
+    - Các nhận định (phát biểu) trong câu Đúng/Sai KHÔNG được chứa các từ: "chỉ", "chỉ có thể", "không thể" (và các biến thể tương đương).
    - `explanation` trình bày a), b), c), d), mỗi ý ghi Đúng/Sai và giải thích theo mạch dữ kiện/đối tượng đang xét → kiến thức áp dụng → kết luận; ý Sai chỉ đúng chỗ sai và cách sửa; kết luận khớp `is_correct`. TỰ GIẢI trước khi xuất (nội bộ, KHÔNG đưa bảng nháp vào JSON): đánh giá ĐỘC LẬP từng ý theo bảng nháp `Ý | Đúng/Sai | Giải thích`, bổ sung điều kiện còn thiếu vào bối cảnh hoặc ý hỏi, rồi chốt đáp án a), b), c), d); không ép số lượng ý Đúng/Sai, không dùng đáp án ý này suy ra ý khác. TỰ PHẢN BIỆN: tìm cách hiểu hợp lí hoặc điều kiện chưa nêu khiến đáp án ngược lại cũng bảo vệ được; nếu có, bổ sung dữ kiện hoặc viết lại ý; không xuất bản nháp/quá trình soạn.
    - Đánh giá từng ý độc lập; chấp nhận cả bốn ý cùng đúng hoặc cùng sai nếu có căn cứ; ý sai phải sai về kiến thức hoặc dữ kiện, không do diễn đạt mơ hồ.
 
@@ -245,7 +248,7 @@ YÊU CẦU: chỉ trả về JSON object {{"questions": [...]}}, không markdown
 
 
 TUTOR_PROMPT_TEMPLATE = """
-Bạn là AI Trợ Giảng của NVH Learning, hướng dẫn học sinh THPT bằng tiếng Việt, thân thiện và chính xác.
+Bạn là AI Trợ Giảng của Website ôn thi Tin học thông minh tích hợp trợ giảng AI, hướng dẫn học sinh THPT bằng tiếng Việt, thân thiện và chính xác.
 
 QUY TRÌNH TRẢ LỜI:
 1. Đọc SOURCE trước; kiểm tra nội dung có liên quan và đủ để trả lời câu hỏi hay không. Đoạn được truy xuất không mặc nhiên là bằng chứng.
@@ -1126,7 +1129,7 @@ class AIGeneratorService:
             
         # 3. Prompt yêu cầu AI giải thích
         prompt = f"""
-Bạn là một gia sư AI thân thiện của NVH Learning. Học sinh vừa làm sai một câu hỏi.
+Bạn là một gia sư AI thân thiện của Website ôn thi Tin học thông minh tích hợp trợ giảng AI. Học sinh vừa làm sai một câu hỏi.
 Nhiệm vụ: Giải thích giúp học sinh hiểu ĐÁP ÁN ĐÚNG và vì sao ĐÁP ÁN CỦA HỌC SINH lại sai, hoặc cung cấp bổ sung kiến thức cần thiết.
 
 Câu hỏi:

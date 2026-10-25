@@ -213,7 +213,7 @@ class AIClassInsightView(APIView):
 
         try:
             system_prompt = f"""
-Bạn là chuyên gia phân tích giáo dục của NVH Learning. 
+Bạn là chuyên gia phân tích giáo dục của Website ôn thi Tin học thông minh tích hợp trợ giảng AI. 
 Hãy phân tích dữ liệu kết quả học tập của lớp {class_name} dưới đây và đưa ra báo cáo ngắn gọn, súc tích.
 
 DỮ LIỆU THỐNG KÊ:
