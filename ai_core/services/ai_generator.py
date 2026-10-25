@@ -696,6 +696,24 @@ class AIGeneratorService:
         return cleaned.strip()
 
     @staticmethod
+    def _regenerate_option(question_text: str, option_text: str) -> str:
+        """Sinh lại một phương án không chứa các từ cấm, giữ nguyên ý nghĩa."""
+        try:
+            prompt = (
+                "Viết lại phương án trắc nghiệm sau sao cho KHÔNG chứa các từ "
+                "'chỉ', 'chỉ có thể', 'không thể' (và biến thể), giữ nguyên ý nghĩa và độ khó. "
+                "Chỉ trả về phương án mới, không giải thích.\n"
+                f"Câu hỏi: {question_text}\n"
+                f"Phương án gốc: {option_text}\n"
+                "Phương án mới:"
+            )
+            resp = ai_client.generate_content(prompt, model=FILE_EXTRACTION_MODEL)
+            new_text = (resp.text or '').strip()
+            return new_text if new_text else option_text
+        except Exception:
+            return option_text
+
+    @staticmethod
     def _coerce_options(options_raw: Any) -> List[Dict[str, Any]]:
         if isinstance(options_raw, dict):
             ordered_keys = [k for k in ('A', 'B', 'C', 'D', 'a', 'b', 'c', 'd') if k in options_raw]
@@ -820,10 +838,11 @@ class AIGeneratorService:
                     # CLEAN LABEL (Remove A. B. C. D. from text if exists)
                     opt_text = AIGeneratorService._clean_option_text(opt_text)
                     
-                    # Kiểm tra từ cấm
+                    # Kiểm tra từ cấm -> sinh lại phương án khác
                     lower_text = opt_text.lower()
                     if any(phrase in lower_text for phrase in forbidden_phrases):
-                        has_forbidden = True
+                        opt_text = AIGeneratorService._regenerate_option(q_text, opt_text)
+                        opt_content = [{'type': 'text', 'value': opt_text}] if opt_text else opt_content
                     
                     # DEDUPLICATION: Skip if option text already seen
                     norm_opt_text = opt_text.lower()
@@ -893,15 +912,7 @@ class AIGeneratorService:
                             else:
                                 found_first = True
 
-            if q_type == 'short_answer':
-                lower_ans = item.get('correct_answer_text', '').lower()
-                if any(phrase in lower_ans for phrase in forbidden_phrases):
-                    has_forbidden = True
-            
-            if has_forbidden:
-                print(f"[normalize] Skipped item {idx}: contains forbidden phrase in options.")
-                skipped += 1
-                continue
+            # (no-op: offending options were regenerated above)
             
             normalized.append(item)
 
