@@ -798,6 +798,10 @@ class AIGeneratorService:
                 'options': [],
             }
 
+            # Từ cấm trong phương án/nhận định
+            forbidden_phrases = ('chỉ', 'chỉ có thể', 'không thể')
+            has_forbidden = False
+            
             if q_type in ('multiple_choice', 'true_false'):
                 raw_opts = AIGeneratorService._coerce_options(
                     q.get('options', q.get('choices', q.get('answers', [])))
@@ -815,6 +819,11 @@ class AIGeneratorService:
                     
                     # CLEAN LABEL (Remove A. B. C. D. from text if exists)
                     opt_text = AIGeneratorService._clean_option_text(opt_text)
+                    
+                    # Kiểm tra từ cấm
+                    lower_text = opt_text.lower()
+                    if any(phrase in lower_text for phrase in forbidden_phrases):
+                        has_forbidden = True
                     
                     # DEDUPLICATION: Skip if option text already seen
                     norm_opt_text = opt_text.lower()
@@ -884,6 +893,16 @@ class AIGeneratorService:
                             else:
                                 found_first = True
 
+            if q_type == 'short_answer':
+                lower_ans = item.get('correct_answer_text', '').lower()
+                if any(phrase in lower_ans for phrase in forbidden_phrases):
+                    has_forbidden = True
+            
+            if has_forbidden:
+                print(f"[normalize] Skipped item {idx}: contains forbidden phrase in options.")
+                skipped += 1
+                continue
+            
             normalized.append(item)
 
         if skipped:
