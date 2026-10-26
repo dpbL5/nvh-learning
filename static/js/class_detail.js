@@ -209,7 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let statusBadge = '', footerAction = '';
             if (isTeacher) {
                 statusBadge = `<span class="badge" style="background:${q.is_published ? 'var(--color-success-light)' : 'var(--color-border)'};color:${q.is_published ? 'var(--color-success)' : 'var(--color-muted)'};">${q.is_published ? '● Công khai' : '○ Nháp'}</span>`;
-                footerAction = `<button class="btn btn-sm btn-primary" onclick="openQuiz('${q.id}')">Chi tiết & Sửa</button>`;
+                footerAction = `<div class="d-flex gap-1">
+                    <button class="btn btn-sm btn-primary" onclick="openQuiz('${q.id}')">Chi tiết & Sửa</button>
+                    <button class="btn btn-sm btn-outline-secondary" data-title="${escapeHtml(q.title)}" onclick="openCopyQuizModal('${q.id}', this.dataset.title)" title="Sao chép sang lớp khác">
+                        <i class="bi bi-files"></i>
+                    </button>
+                </div>`;
             } else if (q.my_attempt?.is_completed) {
                 statusBadge = `<span class="badge" style="background:var(--color-success-light);color:var(--color-success);">✓ Đã nộp ${q.my_attempt.score}/10đ</span>`;
                 footerAction = `<button class="btn btn-sm btn-outline-success" onclick="openQuiz('${q.id}')">Xem kết quả</button>`;
@@ -341,6 +346,81 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (res.ok) window.location.href = `/exams/builder/${data.id}/`;
         else document.getElementById('createQuizError').textContent = "Lỗi khi tạo đề thi.";
+    }
+
+    window.openCopyQuizModal = async function(quizId, title) {
+        window.copySourceQuizId = quizId;
+        const titleEl = document.getElementById('copyQuizSourceTitle');
+        if (titleEl) titleEl.textContent = title || '';
+        const errEl = document.getElementById('copyQuizError');
+        if (errEl) errEl.textContent = '';
+        const list = document.getElementById('copyClassList');
+        list.innerHTML = '<div class="text-muted small p-2">Đang tải danh sách lớp...</div>';
+
+        const modal = new bootstrap.Modal(document.getElementById('copyQuizModal'));
+        modal.show();
+
+        try {
+            const res = await fetch('/api/classes/', { headers: authHeaders() });
+            const data = await res.json();
+            const classes = Array.isArray(data) ? data : (data.results || []);
+            const selectable = classes.filter(c => String(c.id) !== String(classId));
+            if (!selectable.length) {
+                list.innerHTML = '<div class="text-muted small p-2">Bạn chưa có lớp học khác để sao chép.</div>';
+                return;
+            }
+            list.innerHTML = selectable.map(c => `
+                <label class="list-group-item d-flex align-items-center gap-2 py-2">
+                    <input class="form-check-input copy-class-cb" type="checkbox" value="${c.id}">
+                    <span class="fw-semibold">${escapeHtml(c.name)}</span>
+                    <span class="text-muted small ms-auto">${escapeHtml(c.subject_name || '')}</span>
+                </label>
+            `).join('');
+        } catch (e) {
+            list.innerHTML = '<div class="text-danger small p-2">Không tải được danh sách lớp.</div>';
+        }
+    }
+
+    window.submitCopyQuiz = async function() {
+        const quizId = window.copySourceQuizId;
+        if (!quizId) return;
+        const ids = Array.from(document.querySelectorAll('.copy-class-cb:checked')).map(cb => cb.value);
+        const errEl = document.getElementById('copyQuizError');
+        if (!ids.length) {
+            if (errEl) errEl.textContent = 'Chọn ít nhất một lớp.';
+            return;
+        }
+
+        const btn = document.getElementById('btnCopyQuiz');
+        if (btn) btn.disabled = true;
+        if (errEl) errEl.textContent = '';
+
+        try {
+            const res = await fetch(`/api/exams/${quizId}/copy/`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({ classroom_ids: ids })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const message = data.detail
+                    || (Array.isArray(data.classroom_ids) && data.classroom_ids[0])
+                    || 'Sao chép thất bại.';
+                if (errEl) errEl.textContent = message;
+                return;
+            }
+
+            bootstrap.Modal.getInstance(document.getElementById('copyQuizModal'))?.hide();
+            const skipped = data.skipped?.length || 0;
+            let msg = `Đã sao chép sang ${data.created.length} lớp`;
+            if (skipped) msg += `, bỏ qua ${skipped} lớp không hợp lệ`;
+            showGlobalAlert(msg + '.', 'success');
+            await loadQuizzes();
+        } catch (e) {
+            if (errEl) errEl.textContent = 'Lỗi kết nối.';
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     }
 
     window.initAIChat = function() { aiChatInitialized = true; }

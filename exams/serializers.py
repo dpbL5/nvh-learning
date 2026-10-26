@@ -54,6 +54,7 @@ class QuestionSerializer(serializers.ModelSerializer):
     options_data = serializers.ListField(child=serializers.DictField(), required=False, write_only=True)
     images_data = serializers.ListField(child=serializers.DictField(), required=False, write_only=True)
     subject_name = serializers.CharField(source='subject.name', read_only=True)
+    grade_display = serializers.CharField(source='get_grade_display', read_only=True)
     question_type_display = serializers.CharField(
         source='get_question_type_display', read_only=True
     )
@@ -63,7 +64,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = [
             'id', 'question_type', 'question_type_display',
-            'subject', 'subject_name', 'difficulty',
+            'subject', 'subject_name', 'difficulty', 'grade', 'grade_display',
             'text', 'question_text', 'topic', 'content_json', 'context', 'image', 'correct_answer_text',
             'created_at', 'options', 'question_images', 'options_data', 'images_data',
             'can_edit',
@@ -261,7 +262,13 @@ class QuizQuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QuizQuestion
-        fields = ['id', 'quiz', 'question', 'question_id', 'order', 'points']
+        fields = ['id', 'quiz', 'question', 'question_id', 'order', 'points', 'is_points_overridden']
+        read_only_fields = ['is_points_overridden']
+
+    def validate_points(self, value):
+        if value < 0 or value > 10:
+            raise serializers.ValidationError('Điểm mỗi câu phải nằm trong khoảng 0 đến 10.')
+        return value
 
 
 class QuizSerializer(serializers.ModelSerializer):

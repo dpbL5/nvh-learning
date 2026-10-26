@@ -42,6 +42,11 @@ class Question(models.Model):
         ('medium', 'Thông hiểu'),
         ('hard', 'Vận dụng'),
     )
+    GRADE_CHOICES = (
+        ('10', 'Lớp 10'),
+        ('11', 'Lớp 11'),
+        ('12', 'Lớp 12'),
+    )
 
     question_type = models.CharField(
         max_length=20,
@@ -74,6 +79,10 @@ class Question(models.Model):
     )
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='questions')
     difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES, default='easy')
+    grade = models.CharField(
+        max_length=2, choices=GRADE_CHOICES, blank=True, default='', db_index=True,
+        help_text="Khối lớp (10/11/12). Để trống nếu chưa phân loại.",
+    )
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_questions')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -159,6 +168,10 @@ class QuizQuestion(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     order = models.IntegerField(default=0)
     points = models.FloatField(default=1.0)
+    is_points_overridden = models.BooleanField(
+        default=False,
+        help_text="Giáo viên đã tự sửa điểm câu này; không tự động tính lại.",
+    )
 
     class Meta:
         ordering = ['order']

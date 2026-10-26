@@ -283,9 +283,18 @@ class ImportAndImageTests(APITestCase):
         self.assertEqual(len(res.data['saved_ids']), 3)
         self.assertEqual(res.data['rejected'], [{'index': 3, 'reason': 'missing_question_content'}])
         self.assertEqual(self.d.quiz.quiz_questions.count(), 4)
-        self.assertEqual(set(self.d.quiz.quiz_questions.values_list('points', flat=True)), {2.5})
+        self.assertEqual(set(self.d.quiz.quiz_questions.values_list('points', flat=True)), {1.0, 3.0})
         self.assertFalse(Question.objects.get(text='TF').options.get().is_correct)
         self.assertEqual(Question.objects.get(text='SA').correct_answer_text, '42')
+
+    def test_bulk_save_applies_selected_grade(self):
+        res = self.client.post('/api/ai/generate/save-bulk/', {
+            'subject_id': self.d.subject.pk,
+            'grade': '11',
+            'questions': [{'text': 'Câu khối 11'}],
+        }, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(Question.objects.get(text='Câu khối 11').grade, '11')
 
     @patch('ai_core.views.Option.objects.create', side_effect=RuntimeError('injected option failure'))
     def test_bulk_save_failure_does_not_leave_orphan_question(self, _):

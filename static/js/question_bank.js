@@ -96,12 +96,13 @@ async function loadQuestions(page = 1) {
 
     try {
         const sub = document.getElementById('filterSubject').value;
+        const grade = document.getElementById('filterGrade')?.value || '';
         const diff = document.getElementById('filterDiff').value;
         const type = document.getElementById('filterType').value;
         const search = document.getElementById('filterSearch').value;
         const status = document.getElementById('filterStatus') ? document.getElementById('filterStatus').value : '';
         
-        let url = `/api/exams/questions/?page=${page}&subject=${sub}&difficulty=${diff}&question_type=${type}&search=${encodeURIComponent(search)}&status=${status}`;
+        let url = `/api/exams/questions/?page=${page}&subject=${sub}&grade=${grade}&difficulty=${diff}&question_type=${type}&search=${encodeURIComponent(search)}&status=${status}`;
         
         const res = await fetch(url, { headers: authHeaders() });
         const data = await res.json();
@@ -256,6 +257,12 @@ const DIFF_LBL = {
     hard: '<span class="badge bg-danger">Vận dụng</span>'
 };
 
+const GRADE_LBL = {
+    '10': 'Khối 10',
+    '11': 'Khối 11',
+    '12': 'Khối 12'
+};
+
 function renderQuestions() {
     const list = document.getElementById('questionList');
     list.innerHTML = '';
@@ -297,6 +304,7 @@ function renderQuestions() {
                                 <div>
                                     ${TYPE_LBL[q.question_type || 'multiple_choice']}
                                     ${q.question_type === 'true_false' ? '' : DIFF_LBL[q.difficulty || 'medium']}
+                                    ${q.grade ? `<span class="badge bg-light text-dark border">${GRADE_LBL[q.grade] || ('Khối ' + escapeHtml(q.grade))}</span>` : ''}
                                     <span class="badge bg-light text-muted border border-secondary border-opacity-25 ms-1">${escapeHtml(subName)}</span>
                                     ${reviewBadge}
                                 </div>

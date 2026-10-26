@@ -254,6 +254,31 @@
     </div>
 </div>
 
+<!-- Modal: Sao chép bài thi -->
+<div class="modal fade" id="copyQuizModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-files text-primary me-2"></i>Sao chép bài kiểm tra
+                </h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-2">Đề gốc: <strong id="copyQuizSourceTitle"></strong></p>
+                <p class="text-muted small">Chọn lớp nhận bản sao. Bản sao ở trạng thái nháp, giữ nguyên câu hỏi và
+                    điểm từng câu.</p>
+                <div id="copyClassList" class="list-group list-group-flush border rounded"></div>
+                <div id="copyQuizError" class="text-danger small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="btnCopyQuiz" onclick="submitCopyQuiz()">
+                    <i class="bi bi-files me-1"></i>Sao chép
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     window.CLASS_ID = "{{ class_id }}";
 </script>

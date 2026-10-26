@@ -182,6 +182,8 @@ const QuestionEditor = {
     fillData(q) {
         document.getElementById('editorType').value = q.question_type || 'multiple_choice';
         document.getElementById('editorDiff').value = q.difficulty || 'medium';
+        const gradeEl = document.getElementById('editorGrade');
+        if (gradeEl) gradeEl.value = q.grade || '';
         
         if (q.subject) document.getElementById('editorSubject').value = q.subject;
         
@@ -324,6 +326,7 @@ const QuestionEditor = {
         const difficulty = document.getElementById('editorDiff').value;
         const qType = document.getElementById('editorType').value;
         const subject = document.getElementById('editorSubject').value;
+        const grade = document.getElementById('editorGrade')?.value || '';
 
         let effectiveText, effectiveContext, effectiveQuestionText;
 
@@ -344,6 +347,7 @@ const QuestionEditor = {
             text: effectiveText,
             content_json: this._buildContentJson(effectiveText),
             difficulty: difficulty,
+            grade: grade,
             context: effectiveContext,
             question_text: effectiveQuestionText,
             subject: subject,

@@ -82,6 +82,8 @@
                                 <span class="label">Tổng điểm:</span>
                                 <span id="totalPoints" class="value">0</span>
                             </div>
+                            <span id="pointsWarning" class="badge bg-warning text-dark" style="display:none"
+                                title="Tổng điểm các câu đang khác 10">Lệch 10đ</span>
                             <div id="publishActions">
                                 <button id="publishBtn" class="btn btn-success btn-sm px-3" onclick="togglePublish()"
                                     style="display:none">
@@ -147,6 +149,17 @@
                                 </select>
                             </div>
                             <div class="col-6">
+                                <label class="form-label small fw-medium mb-1">Khối</label>
+                                <select id="filterGrade" class="form-select form-select-sm" onchange="filterBank(true)">
+                                    <option value="">Tất cả</option>
+                                    <option value="10">Lớp 10</option>
+                                    <option value="11">Lớp 11</option>
+                                    <option value="12">Lớp 12</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
                                 <label class="form-label small fw-medium mb-1">Dạng</label>
                                 <select id="filterType" class="form-select form-select-sm" onchange="filterBank(true)">
                                     <option value="">Tất cả</option>
@@ -155,13 +168,13 @@
                                     <option value="short_answer">Điền</option>
                                 </select>
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-medium mb-1">Trạng thái</label>
-                            <select id="filterStatus" class="form-select form-select-sm" onchange="filterBank(true)">
-                                <option value="">Tất cả</option>
-                                <option value="needs_review">Cần cập nhật đáp án</option>
-                            </select>
+                            <div class="col-6">
+                                <label class="form-label small fw-medium mb-1">Trạng thái</label>
+                                <select id="filterStatus" class="form-select form-select-sm" onchange="filterBank(true)">
+                                    <option value="">Tất cả</option>
+                                    <option value="needs_review">Cần cập nhật đáp án</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="qb-search-wrap">
                             <i class="bi bi-search qb-search-icon"></i>

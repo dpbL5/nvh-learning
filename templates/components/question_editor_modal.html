@@ -13,19 +13,31 @@
                             <div class="card border-0 shadow-sm h-100">
                                 <div class="card-body">
                                     <div class="row mb-3">
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label fw-bold">Môn học</label>
                                             <select id="editorSubject" class="form-select form-select-sm" required>
                                                 <!-- Populated by JS -->
                                             </select>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-2">
+                                            <label class="form-label fw-bold">Khối</label>
+                                            <select id="editorGrade" class="form-select form-select-sm">
+                                                <option value="">Chưa phân khối</option>
+                                                <option value="10">Lớp 10</option>
+                                                <option value="11">Lớp 11</option>
+                                                <option value="12">Lớp 12</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
                                             <label class="form-label fw-bold">Độ khó</label>
                                             <select id="editorDiff" class="form-select form-select-sm">
                                                 <option value="easy">Nhận biết</option>
                                                 <option value="medium" selected>Thông hiểu</option>
                                                 <option value="hard">Vận dụng</option>
                                             </select>
+                                            <div class="form-text" style="font-size:0.7rem;">
+                                                Biết = nhắc lại; Hiểu = giải thích/so sánh/lập luận; Vận dụng = áp dụng vào tình huống cụ thể.
+                                            </div>
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Dạng câu hỏi</label>

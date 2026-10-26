@@ -194,6 +194,7 @@ const AIGenerator = {
                     count: parseInt(document.getElementById('ragCount')?.value || '5', 10),
                     question_types: document.getElementById('ragQuestionTypes')?.value,
                     difficulty: document.getElementById('ragDifficulty')?.value || 'mixed',
+                    grade: document.getElementById('ragGrade')?.value || '',
                     document_id: document.getElementById('ragDocument')?.value || null,
                 }),
             });
@@ -287,7 +288,8 @@ const AIGenerator = {
                 body: JSON.stringify({
                     questions: selectedQuestions,
                     quiz_id: shouldAddToQuiz ? this.config.quizId : null,
-                    subject_id: this.config.subjectId || document.getElementById('aiExtractSubject')?.value
+                    subject_id: this.config.subjectId || document.getElementById('aiExtractSubject')?.value,
+                    grade: document.getElementById(source === 'file' ? 'aiExtractGrade' : 'ragGrade')?.value || ''
                 }),
             });
 

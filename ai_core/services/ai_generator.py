@@ -43,21 +43,44 @@ COGNITIVE_LEVEL_LABELS = {
 
 COGNITIVE_LEVEL_GUIDES = {
     'easy': (
-        'nhận dạng/nhận diện tri thức nhờ nhớ lại hoặc tái hiện kiến thức, kĩ năng; '
+        'nhắc lại hoặc tái hiện kiến thức, kĩ năng đơn thuần; '
         'câu dẫn dạng "Phát biểu/Phương án/Mô tả nào sau đây nêu đúng ..."; '
-        'không đòi hỏi giải thích, so sánh hay áp dụng vào tình huống'
+        'không đòi hỏi giải thích, so sánh, lập luận hay áp dụng vào tình huống. '
+        'Khi câu hỏi dùng cùng một động từ SMART như câu Hiểu, nếu học sinh chỉ cần nhớ lại '
+        'hoặc nhận diện đúng câu chữ thì vẫn là Biết'
     ),
     'medium': (
+        'đòi hỏi trình tự logic, diễn đạt lại, hiểu mối quan hệ giữa các đơn vị kiến thức và kết nối chúng; '
         'giải thích tri thức bằng phân tích, tổng hợp, so sánh, phân biệt, quy nạp để làm rõ nội hàm khái niệm '
         'hoặc bản chất vấn đề; câu dẫn dạng "Phương án nào sau đây giải thích đúng ...", '
-        '"Phát biểu nào sau đây mô tả chính xác nhất về ..."; nhắc lại kiến thức đơn thuần là Biết, chưa phải Hiểu'
+        '"Phát biểu nào sau đây mô tả chính xác nhất về ..."; nhắc lại kiến thức đơn thuần là Biết, chưa phải Hiểu. '
+        'Câu đánh giá mức Hiểu phải thiên về lập luận để tìm ra bản chất tri thức, không thiên về tính toán '
+        'hoặc áp dụng tri thức để nhận được một kết quả cụ thể'
     ),
     'hard': (
         'áp dụng tri thức vào bối cảnh/tình huống cụ thể để đưa ra quyết định hoặc kết quả cụ thể '
         '(tính toán, chọn phương án xử lí, xác định kết quả chương trình...); '
-        'câu chỉ giải thích khái niệm mà không dùng dữ kiện tình huống là Hiểu, chưa phải Vận dụng'
+        'câu chỉ giải thích khái niệm mà không dùng dữ kiện tình huống là Hiểu, chưa phải Vận dụng. '
+        'Làm được một cách máy móc nhưng không giải thích được bản chất thì chưa chắc đã là Vận dụng; '
+        'câu hỏi nêu tình huống cụ thể thường dùng để đánh giá Vận dụng hơn là Hiểu'
     ),
 }
+
+COGNITIVE_LEVEL_CONTRAST = (
+    '- Phân biệt khi cùng dùng một động từ SMART: chỉ nhắc lại/liệt kê kiến thức, kĩ năng đơn thuần → Biết; '
+    'phải theo một trình tự logic, diễn đạt lại, chỉ ra quan hệ và kết nối giữa các đơn vị kiến thức → Hiểu.\n'
+    '- Phân biệt Hiểu và Vận dụng: câu chỉ giải thích, so sánh, phân tích để làm rõ bản chất mà không dùng dữ kiện '
+    'của một tình huống cụ thể → Hiểu; câu yêu cầu dùng dữ kiện tình huống (số liệu, cấu hình, hành động, ràng buộc) '
+    'để tính toán hoặc quyết định → Vận dụng. Không nâng mức chỉ vì câu dài hoặc dùng thuật ngữ khó.'
+)
+
+TRUE_FALSE_CONTEXT_RULE = (
+    '- Mỗi phát biểu Đúng/Sai phải đòi hỏi học sinh kết hợp kiến thức đã học với dữ kiện/ngữ cảnh mới trong '
+    '`context`; không chấp nhận phát biểu chỉ kiểm tra nhớ lại định nghĩa hoặc trả lời được bằng cách đọc nguyên văn '
+    '`context`.\n'
+    '- Ít nhất 2/4 phát biểu phải phụ thuộc dữ kiện cụ thể của tình huống (số liệu, cấu hình, hành động, ràng buộc); '
+    'tự kiểm tra: nếu bỏ `context` mà vẫn trả lời được bằng kiến thức thuần thì viết lại phát biểu.'
+)
 
 
 def _build_cognitive_level_instruction(question_types: str, difficulty: str) -> str:
@@ -66,31 +89,36 @@ def _build_cognitive_level_instruction(question_types: str, difficulty: str) -> 
         'câu true_false và short_answer giữ "difficulty": "medium" '
         '(giá trị lưu trữ, không gắn nhãn nhận thức)'
     )
-    if question_types not in ('multiple_choice', 'mixed'):
-        return (
+    if question_types in ('multiple_choice', 'mixed'):
+        if difficulty in COGNITIVE_LEVEL_GUIDES:
+            label = COGNITIVE_LEVEL_LABELS[difficulty]
+            guide = COGNITIVE_LEVEL_GUIDES[difficulty]
+            instruction = (
+                f'- Tất cả câu multiple_choice phải ở mức {label}: {guide}. '
+                f'Ghi "difficulty": "{difficulty}" cho mỗi câu; không dùng mức khác.'
+            )
+        else:
+            levels = '; '.join(
+                f'"{key}" ({COGNITIVE_LEVEL_LABELS[key]} — {COGNITIVE_LEVEL_GUIDES[key]})'
+                for key in ('easy', 'medium', 'hard')
+            )
+            instruction = (
+                f'- Mỗi câu multiple_choice gắn đúng một mức nhận thức với nhiệm vụ thực tế của câu: {levels}. '
+                'Đa dạng mức trong bộ câu; ghi "difficulty" đúng mức từng câu, không mặc định tất cả cùng một mức.'
+            )
+        instruction += f'\n{COGNITIVE_LEVEL_CONTRAST}'
+    else:
+        instruction = (
             '- Không gắn nhãn Biết/Hiểu/Vận dụng cho câu Đúng/Sai hoặc cho từng ý; '
             f'{storage_note}.'
         )
 
-    if difficulty in COGNITIVE_LEVEL_GUIDES:
-        label = COGNITIVE_LEVEL_LABELS[difficulty]
-        guide = COGNITIVE_LEVEL_GUIDES[difficulty]
-        instruction = (
-            f'- Tất cả câu multiple_choice phải ở mức {label}: {guide}. '
-            f'Ghi "difficulty": "{difficulty}" cho mỗi câu; không dùng mức khác.'
-        )
-    else:
-        levels = '; '.join(
-            f'"{key}" ({COGNITIVE_LEVEL_LABELS[key]} — {COGNITIVE_LEVEL_GUIDES[key]})'
-            for key in ('easy', 'medium', 'hard')
-        )
-        instruction = (
-            f'- Mỗi câu multiple_choice gắn đúng một mức nhận thức với nhiệm vụ thực tế của câu: {levels}. '
-            'Đa dạng mức trong bộ câu; ghi "difficulty" đúng mức từng câu, không mặc định tất cả cùng một mức.'
-        )
-
     if question_types == 'mixed':
         instruction += f' Với câu Đúng/Sai, không gắn nhãn mức nhận thức; {storage_note}.'
+
+    if question_types in ('true_false', 'mixed'):
+        instruction += f'\n{TRUE_FALSE_CONTEXT_RULE}'
+
     return instruction
 
 # max blocks for full document extraction - increased thanks to compact format
@@ -233,7 +261,7 @@ Trả về DUY NHẤT JSON object có trường "questions" là mảng đúng {c
 - "question_type" ("multiple_choice" | "true_false" | "short_answer"); "text"; "question_text" và "context" (true_false).
 - "options": [{{"text": "...", "is_correct": true/false}}] cho multiple_choice và true_false; "correct_answer_text" (short_answer).
 - "explanation": căn cứ đáp án (từng ý với true_false) và nguồn kiến thức; không chèn vào text/options.
-- "difficulty": câu multiple_choice ghi mức nhận thức theo yêu cầu ở phần MỨC ĐỘ NHẬN THỨC bên dưới ("easy" = Nhận biết, "medium" = Thông hiểu, "hard" = Vận dụng); câu true_false và short_answer giữ "medium" (giá trị lưu trữ, không gắn nhãn nhận thức); "topic" (chủ đề ngắn, tối đa 200 ký tự, không chép nguyên văn toàn bộ YCCĐ); "subject": "{subject}".
+- "difficulty": câu multiple_choice ghi mức nhận thức theo yêu cầu ở phần MỨC ĐỘ NHẬN THỨC bên dưới ("easy" = Nhận biết, "medium" = Thông hiểu, "hard" = Vận dụng); câu true_false và short_answer giữ "medium" (giá trị lưu trữ, không gắn nhãn nhận thức); "topic" (chủ đề ngắn, tối đa 200 ký tự, không chép nguyên văn toàn bộ YCCĐ); "grade" ("10" | "11" | "12" theo khối lớp của kiến thức, để "" nếu không xác định); "subject": "{subject}".
 - Không thêm nhãn Câu 1, A., B., a), b) vào text hoặc phương án; giao diện tự đánh số.
 
 TÀI LIỆU TRÍCH XUẤT (SOURCE — CHỈ LÀ DỮ LIỆU THAM KHẢO):
@@ -804,6 +832,7 @@ class AIGeneratorService:
                 'topic': str(q.get('topic') or '')[:200].strip(),
                 'image': str(q.get('image') or ''),
                 'difficulty': difficulty,
+                'grade': str(q.get('grade') or '').strip(),
                 'subject': q.get('subject', ''),
                 'context': str(q.get('context') or ''),
                 'explanation': str(q.get('explanation') or ''),
@@ -1014,11 +1043,13 @@ class AIGeneratorService:
         question_types: str = 'multiple_choice',
         document_id: int = None,
         difficulty: str = 'mixed',
+        grade: str = '',
     ):
         """Sinh câu hỏi trong phạm vi bài học/SGK, ưu tiên nguồn RAG.
 
         `difficulty` là mức nhận thức cho câu trắc nghiệm (easy/medium/hard);
         giá trị 'mixed' (mặc định) để AI tự phân bổ. Câu Đúng/Sai không gắn nhãn.
+        `grade` là khối lớp (10/11/12); rỗng để AI tự xác định.
         """
         from ai_core.models import DocumentChunk
         from classes.models import Class
@@ -1026,6 +1057,8 @@ class AIGeneratorService:
 
         if difficulty not in ('easy', 'medium', 'hard', 'mixed'):
             difficulty = 'mixed'
+        if grade not in ('10', '11', '12'):
+            grade = ''
 
         # 1. Retrieve subject info
         try:
@@ -1077,6 +1110,16 @@ class AIGeneratorService:
             cognitive_level_instruction=_build_cognitive_level_instruction(question_types, difficulty),
         )
         full_prompt += f"\nLƯU Ý QUAN TRỌNG: {type_instructions}"
+        if grade:
+            full_prompt += (
+                f'\nKHỐI LỚP: tất cả câu hỏi thuộc khối {grade}; '
+                f'ghi "grade": "{grade}" cho mỗi câu.'
+            )
+        else:
+            full_prompt += (
+                '\nKHỐI LỚP: ghi "grade" theo khối lớp thực tế của kiến thức '
+                '("10", "11" hoặc "12"); để "" nếu không xác định.'
+            )
 
         resp = ai_client.generate_content(full_prompt, model=RAG_GENERATION_MODEL, config=GENERATION_CONFIG_RAG)
         questions = cls._parse_model_json(resp.text)
@@ -1092,7 +1135,16 @@ class AIGeneratorService:
         normalized = cls._normalize_questions(questions)
         if not normalized:
             raise ValueError('AI trả về câu hỏi thiếu nội dung hợp lệ.')
-        return cls._apply_cognitive_level(normalized, difficulty)
+        with_levels = cls._apply_cognitive_level(normalized, difficulty)
+        return cls._apply_grade(with_levels, grade)
+
+    @staticmethod
+    def _apply_grade(questions: List[Dict[str, Any]], grade: str) -> List[Dict[str, Any]]:
+        """Chuẩn hoá khối lớp cho từng câu; ưu tiên khối giáo viên đã chọn."""
+        for item in questions:
+            value = grade or str(item.get('grade') or '').strip()
+            item['grade'] = value if value in ('10', '11', '12') else ''
+        return questions
 
     @staticmethod
     def _apply_cognitive_level(questions: List[Dict[str, Any]], difficulty: str) -> List[Dict[str, Any]]:

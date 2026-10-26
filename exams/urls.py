@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     QuestionListCreateView, QuestionDetailView, OptionListCreateView,
     QuizListCreateView, QuizDetailView, QuizQuestionListCreateView,
-    QuizQuestionDetailView, UploadImageView,
+    QuizQuestionDetailView, QuizQuestionResetPointsView, QuizCopyView,
+    UploadImageView,
     CloudinarySignatureView,
     QuestionImageUploadView, QuestionImageLinkView, QuestionImageUnlinkView,
     StudentQuizListView, QuizStartView, QuizSubmitView, ClassAnalyticsView,
@@ -25,9 +26,11 @@ urlpatterns = [
     # Teacher/Admin: Quizzes CRUD
     path('', QuizListCreateView.as_view(), name='quiz-list-create'),
     path('<int:pk>/', QuizDetailView.as_view(), name='quiz-detail'),
+    path('<int:quiz_id>/copy/', QuizCopyView.as_view(), name='quiz-copy'),
     path('analytics/<uuid:class_id>/', ClassAnalyticsView.as_view(), name='class-analytics'),
     path('<int:quiz_id>/questions/', QuizQuestionListCreateView.as_view(), name='quiz-question-list-create'),
     path('<int:quiz_id>/questions/<int:pk>/', QuizQuestionDetailView.as_view(), name='quiz-question-detail'),
+    path('<int:quiz_id>/questions/<int:pk>/reset-points/', QuizQuestionResetPointsView.as_view(), name='quiz-question-reset-points'),
     path('teacher-progress/', TeacherAdminProgressAPIView.as_view(), name='teacher-progress'),
     path('student-progress/', StudentProgressAPIView.as_view(), name='student-progress'),
 

@@ -27,13 +27,22 @@
     <!-- Filters -->
     <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1.5rem;">
         <div class="row g-3">
-            <div class="col-md-3">
+            <div class="col-6 col-md-2">
                 <label class="form-label small fw-medium mb-1">Môn học</label>
                 <select id="filterSubject" class="form-select" onchange="loadQuestions()">
                     <option value="">Tất cả môn học</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-medium mb-1">Khối</label>
+                <select id="filterGrade" class="form-select" onchange="loadQuestions()">
+                    <option value="">Tất cả</option>
+                    <option value="10">Lớp 10</option>
+                    <option value="11">Lớp 11</option>
+                    <option value="12">Lớp 12</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
                 <label class="form-label small fw-medium mb-1">Độ khó</label>
                 <select id="filterDiff" class="form-select" onchange="loadQuestions()">
                     <option value="">Tất cả</option>
@@ -42,7 +51,7 @@
                     <option value="hard">Vận dụng</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-2">
                 <label class="form-label small fw-medium mb-1">Dạng câu hỏi</label>
                 <select id="filterType" class="form-select" onchange="loadQuestions()">
                     <option value="">Tất cả</option>
@@ -51,18 +60,18 @@
                     <option value="short_answer">Trả lời ngắn</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-6 col-md-2">
                 <label class="form-label small fw-medium mb-1">Trạng thái</label>
                 <select id="filterStatus" class="form-select" onchange="loadQuestions()">
                     <option value="">Tất cả</option>
                     <option value="needs_review">Cần cập nhật đáp án</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-6 col-md-2">
                 <label class="form-label small fw-medium mb-1">Tìm kiếm</label>
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                    <input type="text" id="filterSearch" class="form-control border-start-0" placeholder="Nhập nội dung câu hỏi..." onkeyup="debounceSearch()">
+                    <input type="text" id="filterSearch" class="form-control border-start-0" placeholder="Nội dung..." onkeyup="debounceSearch()">
                 </div>
             </div>
         </div>

@@ -30,7 +30,7 @@ from exams.models import Question, Option, Quiz, QuizQuestion
 from exams.views import (
     IsTeacherOrAdmin,
     _get_owned_quiz,
-    rebalance_quiz_question_points,
+    refresh_quiz_question_points,
 )
 from .services.ai_generator import AIGeneratorService, NoQuestionsGenerated
 from .services.ai_provider import get_client
@@ -583,6 +583,9 @@ class AIGenerateFromRAGView(APIView):
         difficulty = request.data.get('difficulty', 'mixed')
         if difficulty not in ('easy', 'medium', 'hard', 'mixed'):
             difficulty = 'mixed'
+        grade = str(request.data.get('grade') or '').strip()
+        if grade not in ('10', '11', '12'):
+            grade = ''
         document_id = request.data.get('document_id')  # Tuỳ chọn: Lọc theo 1 tài liệu cụ thể
 
         if not class_id:
@@ -603,6 +606,7 @@ class AIGenerateFromRAGView(APIView):
                 question_types=question_types,
                 document_id=document_id,
                 difficulty=difficulty,
+                grade=grade,
             )
             if not questions_data:
                 raise NoQuestionsGenerated('AI chưa tạo được câu hỏi. Hãy kiểm tra yêu cầu cần đạt và tài liệu bài học được chọn.')
@@ -636,6 +640,9 @@ class AIBulkSaveQuestionsView(APIView):
         questions_data = request.data.get('questions', [])
         quiz_id = request.data.get('quiz_id')
         subject_id = request.data.get('subject_id')
+        grade = str(request.data.get('grade') or '').strip()
+        if grade not in ('10', '11', '12'):
+            grade = ''
 
         if not questions_data or not subject_id:
             return Response(
@@ -674,6 +681,9 @@ class AIBulkSaveQuestionsView(APIView):
                 difficulty = q_data.get('difficulty', 'medium')
                 if difficulty not in ('easy', 'medium', 'hard'):
                     difficulty = 'medium'
+                question_grade = str(q_data.get('grade') or '').strip()
+                if question_grade not in ('10', '11', '12'):
+                    question_grade = grade
                 content_json = q_data.get('content_json', [])
                 if not isinstance(content_json, list):
                     content_json = []
@@ -706,6 +716,7 @@ class AIBulkSaveQuestionsView(APIView):
                     explanation=str(q_data.get('explanation') or ''),
                     subject=subject,
                     difficulty=difficulty,
+                    grade=question_grade,
                     created_by=request.user,
                 )
 
@@ -746,17 +757,10 @@ class AIBulkSaveQuestionsView(APIView):
                         points=0.0,
                     )
 
-                    quiz_questions = list(
-                        QuizQuestion.objects.filter(quiz=quiz).order_by('order')
-                    )
-                    total_questions = len(quiz_questions)
-                    if total_questions > 0:
-                        points_per_question = round(10.0 / total_questions, 2)
-                        for qq in quiz_questions:
-                            qq.points = points_per_question
-                        QuizQuestion.objects.bulk_update(quiz_questions, ['points'])
-
                 saved_questions.append(question.id)
+
+            if quiz:
+                refresh_quiz_question_points(quiz)
 
             return Response({
                 "detail": f"Đã lưu thành công {len(saved_questions)} câu hỏi.",
@@ -771,7 +775,7 @@ class AIBulkSaveQuestionsView(APIView):
                 try:
                     Question.objects.filter(id__in=created_ids).delete()
                     if locals().get('quiz'):
-                        rebalance_quiz_question_points(quiz)
+                        refresh_quiz_question_points(quiz)
                 except Exception:
                     logger.exception('Failed to roll back partially saved questions')
             msg = str(e)
@@ -998,9 +1002,10 @@ class AIGenerateQuickTestView(APIView):
                     quiz=quiz,
                     question=q,
                     order=idx + 1,
-                    points=round(10.0 / len(selected), 2)
+                    points=0.0
                 )
-                
+            refresh_quiz_question_points(quiz)
+
             return Response({"quiz_id": quiz.id, "message": "Quick Test đã sẵn sàng!"})
             
         except Exception:

@@ -150,6 +150,105 @@ class ClassQuizAndReportTests(APITestCase):
         self.d.qq.refresh_from_db()
         self.assertEqual(self.d.qq.points, 10)
 
+    def test_true_false_points_are_fixed_and_mcq_share_remaining_budget(self):
+        url = f'/api/exams/{self.d.quiz.pk}/questions/'
+        tf = Question.objects.create(
+            question_type='true_false', text='TF', subject=self.d.subject,
+            created_by=self.d.teacher,
+        )
+        added = self.client.post(url, {'question_id': tf.pk, 'order': 2}, format='json')
+        self.assertEqual(added.status_code, 201, added.data)
+        self.assertEqual(added.data['points'], 1.0)
+        self.d.qq.refresh_from_db()
+        self.assertEqual(self.d.qq.points, 9.0)
+
+        mc = Question.objects.create(text='MC 2', subject=self.d.subject, created_by=self.d.teacher)
+        self.assertEqual(self.client.post(url, {'question_id': mc.pk, 'order': 3}, format='json').status_code, 201)
+        self.d.qq.refresh_from_db()
+        self.assertEqual(self.d.qq.points, 4.5)
+        self.assertEqual(
+            list(self.d.quiz.quiz_questions.order_by('order').values_list('points', flat=True)),
+            [4.5, 1.0, 4.5],
+        )
+
+    def test_manual_point_override_is_kept_and_can_be_reset(self):
+        detail_url = f'/api/exams/{self.d.quiz.pk}/questions/{self.d.qq.pk}/'
+        res = self.client.patch(detail_url, {'points': 2.0}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.d.qq.refresh_from_db()
+        self.assertEqual(self.d.qq.points, 2.0)
+        self.assertTrue(self.d.qq.is_points_overridden)
+
+        question = Question.objects.create(text='New', subject=self.d.subject, created_by=self.d.teacher)
+        added = self.client.post(
+            f'/api/exams/{self.d.quiz.pk}/questions/',
+            {'question_id': question.pk, 'order': 2}, format='json',
+        )
+        self.assertEqual(added.data['points'], 5.0)
+        self.d.qq.refresh_from_db()
+        self.assertEqual(self.d.qq.points, 2.0)
+
+        self.assertEqual(
+            self.client.delete(f'/api/exams/{self.d.quiz.pk}/questions/{added.data["id"]}/').status_code, 204
+        )
+        self.d.qq.refresh_from_db()
+        self.assertEqual(self.d.qq.points, 2.0)
+
+        reset = self.client.post(
+            f'/api/exams/{self.d.quiz.pk}/questions/{self.d.qq.pk}/reset-points/', {}, format='json'
+        )
+        self.assertEqual(reset.status_code, 200, reset.data)
+        self.assertEqual(reset.data['points'], 10.0)
+        self.d.qq.refresh_from_db()
+        self.assertFalse(self.d.qq.is_points_overridden)
+
+    def test_copy_quiz_to_multiple_classes_skips_foreign_classes(self):
+        extra_class = Class.objects.create(
+            name='Lớp sao chép', subject=self.d.subject, teacher=self.d.teacher
+        )
+        tf = Question.objects.create(
+            question_type='true_false', text='TF copy', subject=self.d.subject,
+            created_by=self.d.teacher,
+        )
+        self.client.post(
+            f'/api/exams/{self.d.quiz.pk}/questions/', {'question_id': tf.pk, 'order': 2}, format='json'
+        )
+        source_points = list(self.d.quiz.quiz_questions.order_by('order').values_list('points', flat=True))
+
+        res = self.client.post(f'/api/exams/{self.d.quiz.pk}/copy/', {
+            'classroom_ids': [str(extra_class.pk), str(self.d.other_class.pk)],
+        }, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(len(res.data['created']), 1)
+        self.assertEqual(res.data['skipped'], [
+            {'classroom_id': str(self.d.other_class.pk), 'reason': 'permission_denied'},
+        ])
+
+        copied = Quiz.objects.get(pk=res.data['created'][0]['id'])
+        self.assertEqual(copied.classroom_id, extra_class.pk)
+        self.assertFalse(copied.is_published)
+        self.assertEqual(copied.title, f'{self.d.quiz.title} (bản sao)')
+        self.assertEqual(QuizAttempt.objects.filter(quiz=copied).count(), 0)
+        self.assertEqual(copied.quiz_questions.count(), 2)
+        self.assertEqual(
+            list(copied.quiz_questions.order_by('order').values_list('points', flat=True)),
+            source_points,
+        )
+
+    def test_question_bank_filters_by_grade(self):
+        q10 = Question.objects.create(
+            text='Lớp 10', subject=self.d.subject, created_by=self.d.teacher, grade='10'
+        )
+        q11 = Question.objects.create(
+            text='Lớp 11', subject=self.d.subject, created_by=self.d.teacher, grade='11'
+        )
+        res = self.client.get('/api/exams/questions/', {'grade': '11'})
+        self.assertEqual(res.status_code, 200)
+        ids = {item['id'] for item in res.data['results']}
+        self.assertIn(q11.pk, ids)
+        self.assertNotIn(q10.pk, ids)
+        self.assertNotIn(self.d.mc.pk, ids)
+
     def test_other_teacher_cannot_mutate_question_quiz_or_read_progress(self):
         self.client.force_authenticate(self.d.other_teacher)
         self.assertEqual(self.client.patch(f'/api/exams/questions/{self.d.mc.pk}/', {'text': 'Stolen'}, format='json').status_code, 403)

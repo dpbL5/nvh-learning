@@ -44,19 +44,52 @@ def _is_valid_image_bytes(data):
         return False
 
 
-def rebalance_quiz_question_points(quiz):
+def refresh_quiz_question_points(quiz):
+    """Tính lại điểm mặc định cho đề.
+
+    - Câu Đúng/Sai luôn cố định 1.0 điểm.
+    - Câu khác chưa bị giáo viên sửa điểm: chia đều phần ngân sách còn lại
+      (10 - số câu Đúng/Sai) để tổng mặc định đúng bằng 10.
+    - Câu đã bị sửa điểm (is_points_overridden) giữ nguyên.
+    """
     quiz_questions = list(
-        QuizQuestion.objects.filter(quiz=quiz).order_by('order')
+        QuizQuestion.objects.filter(quiz=quiz)
+        .select_related('question')
+        .order_by('order')
     )
-    total_questions = len(quiz_questions)
-    if total_questions == 0:
+    if not quiz_questions:
         return
 
-    points_per_question = round(10.0 / total_questions, 2)
-    for qq in quiz_questions:
-        qq.points = points_per_question
+    changed = {}
 
-    QuizQuestion.objects.bulk_update(quiz_questions, ['points'])
+    def mark(qq):
+        changed[qq.pk] = qq
+
+    true_false_rows = [qq for qq in quiz_questions if qq.question.question_type == 'true_false']
+    other_rows = [qq for qq in quiz_questions if qq.question.question_type != 'true_false']
+
+    for qq in true_false_rows:
+        if qq.points != 1.0 or qq.is_points_overridden:
+            qq.points = 1.0
+            qq.is_points_overridden = False
+            mark(qq)
+
+    if other_rows:
+        budget = max(round(10.0 - float(len(true_false_rows)), 2), 0.0)
+        default_points = round(budget / len(other_rows), 2)
+        default_rows = [qq for qq in other_rows if not qq.is_points_overridden]
+        has_overrides = len(default_rows) != len(other_rows)
+
+        for index, qq in enumerate(default_rows):
+            value = default_points
+            if not has_overrides and index == len(default_rows) - 1:
+                value = round(budget - default_points * (len(default_rows) - 1), 2)
+            if qq.points != value:
+                qq.points = value
+                mark(qq)
+
+    if changed:
+        QuizQuestion.objects.bulk_update(list(changed.values()), ['points', 'is_points_overridden'])
 
 
 class IsTeacherOrAdmin(permissions.BasePermission):
@@ -155,6 +188,7 @@ class QuestionListCreateView(generics.ListCreateAPIView):
         )
         subject_id = self.request.query_params.get('subject')
         difficulty = self.request.query_params.get('difficulty')
+        grade = self.request.query_params.get('grade')
         q_type = self.request.query_params.get('question_type')
         search = self.request.query_params.get('search')
 
@@ -166,6 +200,8 @@ class QuestionListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(subject_id=subject_id)
         if difficulty:
             qs = qs.filter(difficulty=difficulty)
+        if grade in ('10', '11', '12'):
+            qs = qs.filter(grade=grade)
         if q_type:
             qs = qs.filter(question_type=q_type)
         if search:
@@ -235,7 +271,7 @@ class QuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance.delete()
         _delete_orphan_images(image_ids)
         for quiz in Quiz.objects.filter(id__in=quiz_ids):
-            rebalance_quiz_question_points(quiz)
+            refresh_quiz_question_points(quiz)
 
 
 class BulkDeleteQuestionsView(APIView):
@@ -275,7 +311,7 @@ class BulkDeleteQuestionsView(APIView):
         Question.objects.filter(id__in=question_ids).delete()
         _delete_orphan_images(image_ids)
         for quiz in Quiz.objects.filter(id__in=quiz_ids):
-            rebalance_quiz_question_points(quiz)
+            refresh_quiz_question_points(quiz)
 
         return Response({'message': f'Deleted {deleted_count} questions successfully'})
 
@@ -593,6 +629,84 @@ class QuizDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Quiz.objects.none()
 
 
+class QuizCopyView(APIView):
+    """Sao chép một đề sang một hoặc nhiều lớp của giáo viên."""
+    permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+
+    def post(self, request, quiz_id):
+        source = _get_owned_quiz(request.user, quiz_id)
+        if source.assigned_to_id is not None:
+            raise DRFValidationError({'detail': 'Không thể sao chép bài kiểm tra dành riêng cho một học sinh.'})
+        classroom_ids = request.data.get('classroom_ids') or []
+        if not isinstance(classroom_ids, list) or not classroom_ids:
+            raise DRFValidationError({'classroom_ids': 'Chọn ít nhất một lớp.'})
+
+        suffix = request.data.get('title_suffix')
+        suffix = ' (bản sao)' if suffix is None else str(suffix)[:50]
+
+        source_questions = list(
+            source.quiz_questions.select_related('question').order_by('order')
+        )
+
+        created = []
+        skipped = []
+        seen = set()
+
+        for raw_id in classroom_ids:
+            try:
+                classroom_id = uuid.UUID(str(raw_id))
+            except (TypeError, ValueError, AttributeError):
+                skipped.append({'classroom_id': str(raw_id), 'reason': 'invalid_id'})
+                continue
+            if classroom_id in seen:
+                continue
+            seen.add(classroom_id)
+
+            classroom = Class.objects.filter(pk=classroom_id).first()
+            if classroom is None:
+                skipped.append({'classroom_id': str(classroom_id), 'reason': 'not_found'})
+                continue
+            if not (_is_admin_user(request.user) or classroom.teacher_id == request.user.id):
+                skipped.append({'classroom_id': str(classroom_id), 'reason': 'permission_denied'})
+                continue
+
+            with transaction.atomic():
+                copied_quiz = Quiz.objects.create(
+                    title=(source.title + suffix)[:255],
+                    description=source.description,
+                    classroom=classroom,
+                    duration_minutes=source.duration_minutes,
+                    is_published=False,
+                    publish_at=None,
+                    due_date=None,
+                    assigned_to=None,
+                    created_by=request.user,
+                )
+                QuizQuestion.objects.bulk_create([
+                    QuizQuestion(
+                        quiz=copied_quiz,
+                        question=quiz_question.question,
+                        order=quiz_question.order,
+                        points=quiz_question.points,
+                        is_points_overridden=quiz_question.is_points_overridden,
+                    )
+                    for quiz_question in source_questions
+                ])
+            created.append(copied_quiz)
+
+        if not created:
+            return Response(
+                {'created': [], 'skipped': skipped},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = QuizSerializer(created, many=True, context={'request': request})
+        return Response(
+            {'created': serializer.data, 'skipped': skipped},
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class QuizQuestionListCreateView(generics.ListCreateAPIView):
     serializer_class = QuizQuestionSerializer
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
@@ -610,10 +724,11 @@ class QuizQuestionListCreateView(generics.ListCreateAPIView):
         quiz = _get_owned_quiz(self.request.user, self.kwargs.get('quiz_id'))
         try:
             with transaction.atomic():
-                quiz_question = serializer.save(quiz=quiz)
+                quiz_question = serializer.save(quiz=quiz, points=0.0, is_points_overridden=False)
         except IntegrityError:
             raise DRFValidationError({'detail': 'Câu hỏi này đã có trong đề.'})
-        rebalance_quiz_question_points(quiz_question.quiz)
+        refresh_quiz_question_points(quiz)
+        quiz_question.refresh_from_db()
 
 
 class QuizQuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -634,12 +749,37 @@ class QuizQuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
                 quiz_question = serializer.save()
         except IntegrityError:
             raise DRFValidationError({'detail': 'Câu hỏi này đã có trong đề.'})
-        rebalance_quiz_question_points(quiz_question.quiz)
+        if (
+            quiz_question.question.question_type != 'true_false'
+            and 'points' in self.request.data
+        ):
+            quiz_question.is_points_overridden = True
+            quiz_question.save(update_fields=['is_points_overridden'])
+        refresh_quiz_question_points(quiz_question.quiz)
+        quiz_question.refresh_from_db()
 
     def perform_destroy(self, instance):
         quiz = instance.quiz
         instance.delete()
-        rebalance_quiz_question_points(quiz)
+        refresh_quiz_question_points(quiz)
+
+
+class QuizQuestionResetPointsView(APIView):
+    """Bỏ điểm tự sửa của một câu, quay về mặc định của đề."""
+    permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+
+    def post(self, request, quiz_id, pk):
+        quiz = _get_owned_quiz(request.user, quiz_id)
+        quiz_question = get_object_or_404(
+            QuizQuestion.objects.select_related('question', 'quiz'),
+            pk=pk,
+            quiz=quiz,
+        )
+        quiz_question.is_points_overridden = False
+        quiz_question.save(update_fields=['is_points_overridden'])
+        refresh_quiz_question_points(quiz)
+        quiz_question.refresh_from_db()
+        return Response(QuizQuestionSerializer(quiz_question, context={'request': request}).data)
 
 
 # ─── STUDENT: Take Exam ─────────────────────────────────────────────────────

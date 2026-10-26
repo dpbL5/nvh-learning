@@ -318,32 +318,54 @@ async function loadSelectedQuestions() {
     }
     const data = await res.json();
     selectedQuestions = normalizeListResponse(data);
-    await syncQuizPointsToTenScale();
     renderSelectedQuestions();
 }
 
-async function syncQuizPointsToTenScale() {
-    if (!Array.isArray(selectedQuestions) || selectedQuestions.length === 0) return;
+async function updateQuestionPoints(qqId, rawValue) {
+    const value = parseFloat(rawValue);
+    if (Number.isNaN(value) || value < 0 || value > 10) {
+        showGlobalAlert('Điểm mỗi câu phải nằm trong khoảng 0 đến 10.', 'warning');
+        await loadSelectedQuestions();
+        return;
+    }
 
-    const pointsPerQuestion = parseFloat((10 / selectedQuestions.length).toFixed(2));
-    const updates = [];
-
-    selectedQuestions.forEach((qq) => {
-        const currentPoints = parseFloat(qq.points || 0);
-        if (Number.isNaN(currentPoints) || Math.abs(currentPoints - pointsPerQuestion) > 0.001) {
-            updates.push(
-                fetch(`/api/exams/${quizId}/questions/${qq.id}/`, {
-                    method: 'PATCH',
-                    headers: authHeaders(),
-                    body: JSON.stringify({ points: pointsPerQuestion })
-                })
-            );
-            qq.points = pointsPerQuestion.toFixed(2);
-        }
+    const res = await fetch(`/api/exams/${quizId}/questions/${qqId}/`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ points: value })
     });
 
-    if (updates.length > 0) {
-        await Promise.allSettled(updates);
+    if (res.status === 401) { window.location.href = '/login/'; return; }
+    if (!res.ok) {
+        showGlobalAlert('Không thể cập nhật điểm câu hỏi.', 'danger');
+        await loadSelectedQuestions();
+        return;
+    }
+    await loadSelectedQuestions();
+}
+
+async function resetQuestionPoints(qqId) {
+    const res = await fetch(`/api/exams/${quizId}/questions/${qqId}/reset-points/`, {
+        method: 'POST',
+        headers: authHeaders()
+    });
+
+    if (res.status === 401) { window.location.href = '/login/'; return; }
+    if (!res.ok) {
+        showGlobalAlert('Không thể khôi phục điểm mặc định.', 'danger');
+        return;
+    }
+    await loadSelectedQuestions();
+}
+
+function updatePointsSummary() {
+    const total = selectedQuestions.reduce((sum, qq) => sum + (parseFloat(qq.points) || 0), 0);
+    const totalEl = document.getElementById('totalPoints');
+    if (totalEl) totalEl.textContent = total.toFixed(2);
+
+    const warning = document.getElementById('pointsWarning');
+    if (warning) {
+        warning.style.display = Math.abs(total - 10) > 0.01 ? 'inline-block' : 'none';
     }
 }
 
@@ -355,17 +377,29 @@ function renderSelectedQuestions() {
     if (selectedQuestions.length === 0) {
         msg.style.display = 'block';
         document.getElementById('quizQuestionCount').textContent = 0;
-        document.getElementById('totalPoints').textContent = 0;
+        updatePointsSummary();
         return;
     }
     
     msg.style.display = 'none';
     document.getElementById('quizQuestionCount').textContent = selectedQuestions.length;
     
-    const perQuestionPoint = selectedQuestions.length > 0 ? (10 / selectedQuestions.length) : 0;
     selectedQuestions.sort((a,b) => a.order - b.order).forEach((qq, idx) => {
-        qq.points = perQuestionPoint.toFixed(2);
         const q = qq.question;
+        const isFixedPoints = q.question_type === 'true_false';
+        const pointsControl = isFixedPoints
+            ? `<span class="badge bg-light text-primary border ms-1" style="font-size:0.75rem">
+                    <i class="bi bi-star-fill me-1 text-warning"></i>1.00 điểm (cố định)
+               </span>`
+            : `<span class="badge bg-light text-primary border ms-1 d-inline-flex align-items-center gap-1" style="font-size:0.75rem">
+                    <i class="bi bi-star-fill text-warning"></i>
+                    <input type="number" min="0" max="10" step="0.05" value="${(parseFloat(qq.points) || 0).toFixed(2)}"
+                        onchange="updateQuestionPoints(${qq.id}, this.value)"
+                        style="width:58px;border:0;background:transparent;font-size:0.75rem;font-weight:700;text-align:right;">
+                    điểm
+               </span>
+               ${qq.is_points_overridden ? `<button class="btn btn-sm btn-link text-muted p-0 ms-1" style="font-size:0.7rem" onclick="resetQuestionPoints(${qq.id})" title="Quay về điểm mặc định">Mặc định</button>` : ''}`;
+
         const item = document.createElement('li');
         item.className = `qb-question-item animate-in`;
         item.style.animationDelay = `${idx * 0.05}s`;
@@ -375,9 +409,8 @@ function renderSelectedQuestions() {
                     <span class="qb-q-number">Câu ${idx + 1}</span>
                     ${typeBadge(q.question_type)}
                     ${q.question_type === 'true_false' ? '' : diffBadge(q.difficulty)}
-                    <span class="badge bg-light text-primary border ms-1" style="font-size:0.75rem">
-                        <i class="bi bi-star-fill me-1 text-warning"></i>${qq.points} điểm
-                    </span>
+                    ${q.grade ? `<span class="badge bg-light text-muted border rounded-pill px-2" style="font-size:0.65rem">Khối ${escapeHtml(q.grade)}</span>` : ''}
+                    ${pointsControl}
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     ${q.can_edit ? `<button class="btn btn-sm btn-light text-primary px-2 border" onclick="editQuestion(${q.id})" title="Sửa nội dung">
@@ -393,7 +426,7 @@ function renderSelectedQuestions() {
         `;
         list.appendChild(item);
     });
-    document.getElementById('totalPoints').textContent = selectedQuestions.length > 0 ? 10 : 0;
+    updatePointsSummary();
 }
 
 let qbCurrentPage = 1;
@@ -409,6 +442,7 @@ async function loadQuestionBank(page = 1) {
     // Subject filter from sidebar or default to quiz subject
     const sub = document.getElementById('filterSubject')?.value;
     const diff = document.getElementById('filterDiff')?.value;
+    const grade = document.getElementById('filterGrade')?.value;
     const type = document.getElementById('filterType')?.value;
     const status = document.getElementById('filterStatus')?.value;
 
@@ -420,6 +454,7 @@ async function loadQuestionBank(page = 1) {
     }
 
     if (diff) url += `&difficulty=${diff}`;
+    if (grade) url += `&grade=${grade}`;
     if (type) url += `&question_type=${type}`;
     if (status) url += `&status=${status}`;
 
@@ -511,6 +546,7 @@ function renderQuestionBank(questions) {
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex gap-1">
                     ${typeBadge(q.question_type)}
+                    ${q.grade ? `<span class="badge bg-light text-muted border" style="font-size:0.62rem">Khối ${escapeHtml(q.grade)}</span>` : ''}
                     <span class="text-muted" style="font-size:0.7rem; font-weight:500;">${escapeHtml(q.subject_name)}</span>
                 </div>
                 <div class="d-flex gap-1 align-items-center">
@@ -528,13 +564,10 @@ async function addQuestionToQuiz(qId) {
     if (selectedQuestions.length > 0) {
         maxOrder = Math.max(...selectedQuestions.map(qq => qq.order));
     }
-    const nextQuestionCount = selectedQuestions.length + 1;
-    const nextPointValue = parseFloat((10 / nextQuestionCount).toFixed(2));
-
     const res = await fetch(`/api/exams/${quizId}/questions/`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ question_id: qId, order: maxOrder + 1, points: nextPointValue })
+        body: JSON.stringify({ question_id: qId, order: maxOrder + 1 })
     });
 
     if (res.status === 401) { window.location.href = '/login/'; return; }

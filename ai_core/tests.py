@@ -574,7 +574,7 @@ class AICoreApiTests(APITestCase):
 				generate.assert_called_once_with(
 					topic=payload['topic'], count=3, class_id=str(self.classroom.id),
 					question_types='multiple_choice', document_id=None,
-					difficulty=expected_level,
+					difficulty=expected_level, grade='',
 				)
 
 	def test_generate_from_rag_forbidden_for_student(self):
