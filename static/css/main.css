@@ -103,6 +103,34 @@ h1,h2,h3,h4,h5,h6 { font-weight: 700; letter-spacing: -0.02em; }
 .btn          { transition: var(--transition); }
 .btn:active   { transform: translateY(0) !important; }
 
+/* Copy-quiz CTA: vivid accent so teachers spot it when reusing a quiz in another class */
+.btn-copy-quiz {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);
+  border: 1px solid #DB2777;
+  color: #fff;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 3px 12px rgba(219, 39, 119, 0.45);
+}
+.btn-copy-quiz:hover,
+.btn-copy-quiz:focus {
+  background: linear-gradient(135deg, #DB2777 0%, #9D174D 100%);
+  border-color: #9D174D;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(219, 39, 119, 0.55);
+}
+.btn-copy-quiz:disabled {
+  opacity: 0.65;
+  transform: none !important;
+  box-shadow: none;
+}
+.btn-copy-quiz i { font-size: 1rem; line-height: 1; }
+
 .form-control, .form-select {
   border-radius: var(--radius-sm);
   border-color: var(--color-border);
@@ -189,11 +217,8 @@ h1,h2,h3,h4,h5,h6 { font-weight: 700; letter-spacing: -0.02em; }
   background: #f3efff;
   border-color: #6d3bf5;
 }
-.app-nav__auth .nav-btn-solid { color: #fff; background: #6d3bf5; border-color: #6d3bf5; }
-.app-nav__auth .nav-btn-solid:hover { color: #fff; background: #5626d6; border-color: #5626d6; }
 .app-nav__auth .nav-btn-logout { color: #b42318; background: transparent; border-color: rgba(180, 35, 24, 0.25); }
 .app-nav__auth .nav-btn-logout:hover { color: #fff; background: #b42318; border-color: #b42318; }
-.app-nav__auth .nav-divider { display: none; }
 .app-nav__auth #navBellBtn {
   min-height: 44px;
   padding: 0 8px !important;

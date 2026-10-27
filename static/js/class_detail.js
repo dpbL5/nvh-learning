@@ -210,9 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isTeacher) {
                 statusBadge = `<span class="badge" style="background:${q.is_published ? 'var(--color-success-light)' : 'var(--color-border)'};color:${q.is_published ? 'var(--color-success)' : 'var(--color-muted)'};">${q.is_published ? '● Công khai' : '○ Nháp'}</span>`;
                 footerAction = `<div class="d-flex gap-1">
-                    <button class="btn btn-sm btn-primary" onclick="openQuiz('${q.id}')">Chi tiết & Sửa</button>
-                    <button class="btn btn-sm btn-outline-secondary" data-title="${escapeHtml(q.title)}" onclick="openCopyQuizModal('${q.id}', this.dataset.title)" title="Sao chép sang lớp khác">
-                        <i class="bi bi-files"></i>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openQuiz('${q.id}')">Chi tiết & Sửa</button>
+                    <button class="btn btn-sm btn-copy-quiz" data-title="${escapeHtml(q.title)}" onclick="openCopyQuizModal('${q.id}', this.dataset.title)" title="Sao chép đề sang lớp khác">
+                        <i class="bi bi-files"></i><span>Sao chép</span>
                     </button>
                 </div>`;
             } else if (q.my_attempt?.is_completed) {

@@ -147,30 +147,16 @@ window.updateNavbarUI = function(user) {
     if (!navAuthLinks || !user) return;
 
     const initials = ((user.last_name || '')[0] || '') + ((user.first_name || '')[0] || user.username[0] || '');
-    const role = user.role?.name;
-    // Teacher/admin shell pages carry dashboard + question bank in the sidebar; everywhere else
-    // those links stay in the top bar so navigation never dead-ends.
-    const hasSidebarShell = Boolean(document.querySelector('.app-shell'));
-    const useTopNav = role === 'student' || !hasSidebarShell;
-    const navLinks = [];
-    if (useTopNav) {
-        navLinks.push({ href: '/dashboard/', icon: 'bi-speedometer2', label: 'Bảng điều khiển' });
-        if (role !== 'student') {
-            navLinks.push({ href: '/exams/question-bank/', icon: 'bi-bank2', label: 'Ngân hàng câu hỏi' });
-        }
-    }
 
+    // Workspace navigation lives in the sidebar (app_sidebar.html) on every page, so the
+    // top bar only carries account-level actions and never duplicates sidebar links.
     navAuthLinks.innerHTML = `
-        ${navLinks.map(l => `<a href="${l.href}" class="nav-btn nav-btn-solid"><i class="bi ${l.icon}"></i> ${l.label}</a>`).join('')}
-        <div class="nav-divider"></div>
-        
         <!-- Bell Icon -->
         <button id="navBellBtn" class="nav-btn position-relative" style="background:transparent; border:none; color:#fff; font-size:1.25rem; padding:0 0.5rem;">
             <i class="bi bi-bell-fill"></i>
             <span id="navBellBadge" class="position-absolute translate-middle badge rounded-pill bg-danger" 
                   style="top:8px; right:-12px; font-size:0.6rem; display:none; padding:0.25em 0.5em;">0</span>
         </button>
-        <div class="nav-divider"></div>
 
         <a href="/profile/" class="d-flex align-items-center gap-2 px-2 text-decoration-none" title="Thông tin cá nhân" style="color:inherit;">
             ${user.avatar_url
@@ -178,22 +164,24 @@ window.updateNavbarUI = function(user) {
                 : `<div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;">${escapeHtml(initials.toUpperCase())}</div>`}
             <span style="font-size:0.82rem;color:rgba(255,255,255,0.85);font-weight:500;">${escapeHtml(user.first_name || user.username)}</span>
         </a>
-        <div class="nav-divider"></div>
         <button class="nav-btn nav-btn-logout" onclick="doLogout()"><i class="bi bi-box-arrow-right"></i> Thoát</button>
     `;
 };
 
-// Teacher/admin pages with an app shell get the sidebar; students never see it.
+// Every authenticated workspace page renders the same sidebar; items are hidden by role.
 window.updateAppShell = function(user) {
     const shell = document.querySelector('.app-shell');
     const sidebar = document.getElementById('appSidebar');
     if (!shell || !sidebar) return;
+
     const role = user?.role?.name;
-    if (role !== 'teacher' && role !== 'admin') return;
+    const isAdmin = role === 'admin';
+    const isTeacher = role === 'teacher' || isAdmin;
 
     sidebar.hidden = false;
     shell.classList.add('has-sidebar');
-    sidebar.querySelectorAll('[data-admin-only]').forEach(el => { el.hidden = role !== 'admin'; });
+    sidebar.querySelectorAll('[data-admin-only]').forEach(el => { el.hidden = !isAdmin; });
+    sidebar.querySelectorAll('[data-teacher-only]').forEach(el => { el.hidden = !isTeacher; });
 
     const path = window.location.pathname.replace(/\/+$/, '') || '/';
     const active = path === '/dashboard' ? 'dashboard'

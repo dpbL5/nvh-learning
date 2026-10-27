@@ -1,8 +1,8 @@
 from django.db import models
 from accounts.models import User
 from classes.models import Class, Subject
-import re
-from fractions import Fraction
+
+from .scoring import is_answer_correct
 
 
 class ImageBank(models.Model):
@@ -213,6 +213,10 @@ class StudentAnswer(models.Model):
         max_length=500, blank=True, null=True,
         help_text="Đáp án text (cho dạng trả lời ngắn)."
     )
+    answer_value = models.BooleanField(
+        null=True, blank=True,
+        help_text="Học sinh chọn Đúng (True) / Sai (False) cho từng phát biểu ở dạng Đúng/Sai.",
+    )
 
     class Meta:
         constraints = [
@@ -228,37 +232,14 @@ class StudentAnswer(models.Model):
             ),
         ]
 
-    @staticmethod
-    def _normalize_short_answer(value):
-        text = re.sub(r'\s+', '', str(value or '').strip().lower().replace(',', '.'))
-        if not text:
-            return ''
-        try:
-            return Fraction(text)
-        except (ValueError, ZeroDivisionError):
-            return text
-
     def is_correct(self):
         """Kiểm tra đáp án đúng dựa trên dạng câu hỏi."""
-        q_type = self.quiz_question.question.question_type
-
-        if q_type == 'multiple_choice':
-            if not self.selected_option:
-                return False
-            return self.selected_option.is_correct
-
-        elif q_type == 'true_false':
-            if not self.selected_option:
-                return False
-            return self.selected_option.is_correct
-
-        elif q_type == 'short_answer':
-            correct = self.quiz_question.question.correct_answer_text
-            if not correct or not self.answer_text:
-                return False
-            return self._normalize_short_answer(self.answer_text) == self._normalize_short_answer(correct)
-
-        return False
+        return is_answer_correct(
+            self.quiz_question.question,
+            selected_option=self.selected_option,
+            answer_text=self.answer_text,
+            answer_value=self.answer_value,
+        )
 
     def __str__(self):
         return f"{self.attempt.student.username} -> {self.selected_option or self.answer_text}"

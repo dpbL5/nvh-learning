@@ -2,6 +2,9 @@
 {% load static %}
 {% block title %}Xây dựng Đề thi – Nguyễn Văn Huyên Learning{% endblock %}
 {% block content %}
+<div class="app-shell">
+{% include 'components/app_sidebar.html' %}
+<div class="app-main">
 <div class="container py-4 pb-5">
     <!-- Header -->
     <div id="loadingQuiz" class="text-center py-5">
@@ -191,6 +194,7 @@
             </div>
         </div>
     </div>
+</div>
 
 
     {% include 'components/ai_generator_modal.html' with show_save_to_quiz=True %}
@@ -276,9 +280,8 @@
             </div>
         </div>
     </div>
-
-
-
+</div>
+</div>
 
     {% endblock %}
 

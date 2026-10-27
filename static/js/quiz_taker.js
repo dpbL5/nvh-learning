@@ -193,7 +193,7 @@ async function submitExam(isAuto=false) {
         const qType = qq.question.question_type || 'multiple_choice';
         if (qType === 'multiple_choice') answersArr.push({quiz_question_id: qqId, selected_option_id: ansData.selected_option_id});
         else if (qType === 'true_false' && ansData.true_false_answers) {
-            for (const [optIdStr] of Object.entries(ansData.true_false_answers)) answersArr.push({quiz_question_id: qqId, selected_option_id: parseInt(optIdStr)});
+            for (const [optIdStr, value] of Object.entries(ansData.true_false_answers)) answersArr.push({quiz_question_id: qqId, selected_option_id: parseInt(optIdStr), answer_value: value});
         } else if (qType === 'short_answer') answersArr.push({quiz_question_id: qqId, answer_text: ansData.answer_text});
     }
     try {

@@ -13,6 +13,7 @@ from django.core.files.base import ContentFile
 from datetime import timedelta
 from classes.models import Class, ClassStudent
 from .models import Question, Option, Quiz, QuizQuestion, QuizAttempt, StudentAnswer, ImageBank, QuestionImage
+from .scoring import calculate_score, score_submission
 from .serializers import (
     QuestionSerializer, OptionSerializer, QuizSerializer,
     QuizQuestionSerializer, QuizAttemptSerializer, QuizQuestionPublicSerializer,
@@ -914,90 +915,19 @@ class QuizSubmitView(APIView):
                 .select_related('question')
                 .prefetch_related('question__options')
             )
-            total_points = sum((qq.points or 0) for qq in quiz_questions)
-            earned_points = 0.0
+            decisions, earned_points, total_points = score_submission(
+                quiz_questions, answers_by_question,
+            )
+            for decision in decisions:
+                StudentAnswer.objects.create(
+                    attempt=attempt,
+                    quiz_question=decision['quiz_question'],
+                    selected_option=decision['selected_option'],
+                    answer_text=decision['answer_text'],
+                    answer_value=decision['answer_value'],
+                )
 
-            for qq in quiz_questions:
-                raw_answers = answers_by_question.get(qq.id, [])
-                if not raw_answers:
-                    continue
-
-                q_type = qq.question.question_type
-
-                if q_type == 'short_answer':
-                    answer_text = next(
-                        (str(a.get('answer_text')).strip() for a in raw_answers if a.get('answer_text') is not None),
-                        None,
-                    )
-                    if not answer_text:
-                        continue
-                    student_answer = StudentAnswer.objects.create(
-                        attempt=attempt,
-                        quiz_question=qq,
-                        answer_text=answer_text[:500],
-                    )
-                    if student_answer.is_correct():
-                        earned_points += qq.points or 0
-
-                elif q_type == 'true_false':
-                    option_ids = []
-                    for raw in raw_answers:
-                        try:
-                            option_id = int(raw.get('selected_option_id'))
-                        except (TypeError, ValueError):
-                            continue
-                        if option_id not in option_ids:
-                            option_ids.append(option_id)
-
-                    valid_options = [o for o in qq.question.options.all() if o.id in option_ids]
-                    if not valid_options:
-                        continue
-
-                    correct_count = 0
-                    for option in valid_options:
-                        student_answer = StudentAnswer.objects.create(
-                            attempt=attempt,
-                            quiz_question=qq,
-                            selected_option=option,
-                        )
-                        if student_answer.is_correct():
-                            correct_count += 1
-
-                    statement_count = qq.question.options.count() or 1
-                    earned_points += (qq.points or 0) * correct_count / statement_count
-
-                else:
-                    selected_option = None
-                    for raw in raw_answers:
-                        try:
-                            option_id = int(raw.get('selected_option_id'))
-                        except (TypeError, ValueError):
-                            continue
-                        try:
-                            selected_option = Option.objects.get(
-                                id=option_id,
-                                question_id=qq.question_id,
-                            )
-                            break
-                        except Option.DoesNotExist:
-                            continue
-
-                    if selected_option is None:
-                        continue
-
-                    student_answer = StudentAnswer.objects.create(
-                        attempt=attempt,
-                        quiz_question=qq,
-                        selected_option=selected_option,
-                    )
-                    if student_answer.is_correct():
-                        earned_points += qq.points or 0
-
-            final_score = 0
-            if total_points > 0:
-                final_score = min(10.0, round(earned_points / total_points * 10, 2))
-
-            attempt.score = final_score
+            attempt.score = calculate_score(earned_points, total_points)
             attempt.is_completed = True
             attempt.end_time = now
             attempt.save(update_fields=['score', 'is_completed', 'end_time'])

@@ -47,7 +47,8 @@ COGNITIVE_LEVEL_GUIDES = {
         'câu dẫn dạng "Phát biểu/Phương án/Mô tả nào sau đây nêu đúng ..."; '
         'không đòi hỏi giải thích, so sánh, lập luận hay áp dụng vào tình huống. '
         'Khi câu hỏi dùng cùng một động từ SMART như câu Hiểu, nếu học sinh chỉ cần nhớ lại '
-        'hoặc nhận diện đúng câu chữ thì vẫn là Biết'
+        'hoặc nhận diện đúng câu chữ thì vẫn là Biết; đáp án đúng phải nhận diện được bằng một bước duy nhất '
+        'từ câu chữ của bài, không cần so sánh, giải thích hay tính toán trung gian'
     ),
     'medium': (
         'đòi hỏi trình tự logic, diễn đạt lại, hiểu mối quan hệ giữa các đơn vị kiến thức và kết nối chúng; '
@@ -55,14 +56,21 @@ COGNITIVE_LEVEL_GUIDES = {
         'hoặc bản chất vấn đề; câu dẫn dạng "Phương án nào sau đây giải thích đúng ...", '
         '"Phát biểu nào sau đây mô tả chính xác nhất về ..."; nhắc lại kiến thức đơn thuần là Biết, chưa phải Hiểu. '
         'Câu đánh giá mức Hiểu phải thiên về lập luận để tìm ra bản chất tri thức, không thiên về tính toán '
-        'hoặc áp dụng tri thức để nhận được một kết quả cụ thể'
+        'hoặc áp dụng tri thức để nhận được một kết quả cụ thể. '
+        'Câu Hiểu bắt buộc có ít nhất một bước nối hai đơn vị kiến thức (so sánh, phân biệt, nhân–quả, '
+        'điều kiện–kết quả) và học sinh phải diễn đạt lại bằng lời của mình, không chọn được bằng cách dò từ khóa '
+        'trùng với SGK; nếu câu có bối cảnh thì bối cảnh chỉ để đặt vấn đề, không chứa dữ kiện riêng buộc phải '
+        'tính hoặc quyết định'
     ),
     'hard': (
         'áp dụng tri thức vào bối cảnh/tình huống cụ thể để đưa ra quyết định hoặc kết quả cụ thể '
         '(tính toán, chọn phương án xử lí, xác định kết quả chương trình...); '
         'câu chỉ giải thích khái niệm mà không dùng dữ kiện tình huống là Hiểu, chưa phải Vận dụng. '
         'Làm được một cách máy móc nhưng không giải thích được bản chất thì chưa chắc đã là Vận dụng; '
-        'câu hỏi nêu tình huống cụ thể thường dùng để đánh giá Vận dụng hơn là Hiểu'
+        'câu hỏi nêu tình huống cụ thể thường dùng để đánh giá Vận dụng hơn là Hiểu. '
+        'Câu Vận dụng bắt buộc dùng ít nhất một dữ kiện riêng của tình huống (số liệu, cấu hình, hành động, '
+        'ràng buộc) làm đầu vào; bỏ dữ kiện đó mà vẫn chọn được đáp án thì câu chưa đạt mức Vận dụng; '
+        'đáp án đúng phải là kết quả cụ thể (giá trị, đầu ra, phương án xử lí), không phải phát biểu giải thích khái niệm'
     ),
 }
 
@@ -71,7 +79,14 @@ COGNITIVE_LEVEL_CONTRAST = (
     'phải theo một trình tự logic, diễn đạt lại, chỉ ra quan hệ và kết nối giữa các đơn vị kiến thức → Hiểu.\n'
     '- Phân biệt Hiểu và Vận dụng: câu chỉ giải thích, so sánh, phân tích để làm rõ bản chất mà không dùng dữ kiện '
     'của một tình huống cụ thể → Hiểu; câu yêu cầu dùng dữ kiện tình huống (số liệu, cấu hình, hành động, ràng buộc) '
-    'để tính toán hoặc quyết định → Vận dụng. Không nâng mức chỉ vì câu dài hoặc dùng thuật ngữ khó.'
+    'để tính toán hoặc quyết định → Vận dụng. Không nâng mức chỉ vì câu dài hoặc dùng thuật ngữ khó.\n'
+    '- Xét mức theo thứ tự và dừng ở mức đầu tiên thỏa: (1) trả lời được bằng nhớ lại hoặc nhận diện câu chữ → Biết; '
+    '(2) phải so sánh, phân biệt, giải thích hoặc chỉ ra quan hệ mới chọn được → Hiểu; '
+    '(3) chỉ chọn được khi dùng dữ kiện riêng của tình huống để tính hoặc quyết định → Vận dụng.\n'
+    '- Mức của câu do thao tác bắt buộc cao nhất quyết định, nhưng chỉ khi thao tác đó thực sự cần để chọn đáp án; '
+    'có bối cảnh hoặc tình huống không tự động là Vận dụng.\n'
+    '- Viết xong câu và tự giải mới gán "difficulty"; không gán nhãn trước rồi viết câu cho khớp nhãn. '
+    'Nếu nhãn không khớp thao tác thực tế để loại ba phương án nhiễu thì sửa câu hoặc đổi nhãn.'
 )
 
 TRUE_FALSE_CONTEXT_RULE = (
@@ -235,6 +250,7 @@ CẤU TRÚC:
    - Câu dẫn ngắn, đủ dữ kiện, không cho sẵn công thức/quy tắc đang kiểm tra; BẮT BUỘC hỏi dạng lựa chọn: "Phương án nào sau đây nêu đúng ...?", "Phát biểu nào sau đây đúng về ...?", "Nhận định nào dưới đây mô tả đúng ...?" hoặc tương đương phù hợp nội dung. KHÔNG xuất câu hỏi mở như "... là gì?", "... có vai trò gì?", "... diễn ra như thế nào?", "Vì sao ...?", "Hãy giải thích ..."; nếu có, viết lại thành câu lựa chọn giữ nguyên kiến thức và mức nhận thức, rồi rà soát `text` trước khi xuất.
    - Phân hóa bằng nhiệm vụ phù hợp mức nhận thức của câu (nhận diện, giải thích, vận dụng); không tăng khó bằng câu dài, mẹo, thuật ngữ ngoài bài/lớp hay kiến thức chuyên môn của bối cảnh.
    - Xác định đáp án đúng và ba sai lầm hợp lí trước khi viết phương án; nhiễu cùng nhóm khái niệm, phản ánh hiểu sai cụ thể, ít nhất hai nhiễu đủ hấp dẫn. Không để đáp án đúng nổi bật bởi độ dài, không dùng nhiễu vô lí/trùng nhau/từ cực đoan; nếu không có ba nhiễu tốt thì đổi câu dẫn. Phân bố vị trí đáp án đúng cân đối, tránh chuỗi dễ đoán; khi hoán đổi phải cập nhật lời giải.
+   - KIỂM TRA LOGIC: chỉ dùng câu dẫn và kiến thức bài phải loại được cả ba nhiễu và giữ đúng một đáp án; mỗi nhiễu sai vì một lỗi kiến thức nêu được trong lời giải. Nếu hai phương án cùng đúng hoặc cùng sai theo một cách hiểu hợp lí, hoặc phải thêm giả định ngoài câu dẫn mới loại được nhiễu, thì viết lại câu dẫn hoặc phương án; không sửa lời giải để hợp thức hóa câu hỏi mơ hồ.
 
 2. true_false (Đúng/Sai):
    - QUY TRÌNH NỘI BỘ: Bước 1 — từ SOURCE liên quan xác định khái niệm/kĩ năng, đối chiếu YCCĐ để giới hạn mục tiêu; nếu SOURCE thiếu, chỉ dùng kiến thức nền trong phạm vi YCCĐ đã nêu. Bước 2 — brainstorm các công việc cần kiến thức đó để giải quyết, xác định người thực hiện, mục tiêu, quyết định và kiến thức cần dùng; chọn việc liên hệ rõ nhất, đa dạng công việc và quyết định, không chỉ đổi tên nhân vật hoặc số liệu. Bước 3 — dựng tình huống có dữ kiện, ràng buộc, hành động/phương án cụ thể; mỗi chi tiết phục vụ ít nhất một nhận định, đủ điều kiện kết luận nhưng không nói hộ kiến thức đang kiểm tra. Bước 4 — lập mục tiêu từng ý TRƯỚC khi viết: khái niệm từ SOURCE/YCCĐ → đối tượng/dữ kiện của tình huống → kết luận Đúng/Sai cần kiểm tra; không bắt mọi ý đều là đánh giá hành động. Bước 5 — soạn từ cách giải: tự giải độc lập từng ý, sửa điều kiện/nhận định còn mơ hồ rồi mới gán is_correct và viết lời giải; chỉ xuất JSON cuối, không xuất danh sách brainstorm hay bản nháp.

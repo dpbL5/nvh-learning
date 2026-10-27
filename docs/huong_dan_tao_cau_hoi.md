@@ -154,11 +154,49 @@ d) Hiện nay giáo viên và học sinh có thể đăng ký mượn thiết b�
 | Số phương án | 4 (A, B, C, D) | 4 ý (a, b, c, d) |
 | Cấu trúc phần dẫn | Câu hỏi ngắn, độc lập | Bối cảnh thực tiễn 5–10 dòng |
 | Yêu cầu bối cảnh | Không bắt buộc | Bắt buộc — học sinh phải dựa vào bối cảnh |
-| Mức nhận thức | Chọn được Nhận biết / Thông hiểu / Vận dụng khi sinh câu hỏi | Không gắn nhãn mức nhận thức |
+| Mức nhận thức | Chọn được Nhận biết / Thông hiểu / Vận dụng khi sinh câu hỏi (xem mục 4) | Không gắn nhãn mức nhận thức |
 | Lời giải | Giải thích đáp án đúng | Giải thích từng ý, không kèm mức nhận thức |
 | Đáp án cuối | `**Chọn [A/B/C/D]**` | Ghi rõ Đúng/Sai cho từng ý |
 
-## 4. Cách viết tham khảo từ đề Tin học mã 0501
+## 4. Phân biệt mức nhận thức khi sinh câu trắc nghiệm
+
+Mức nhận thức chỉ gắn cho câu nhiều lựa chọn; câu Đúng/Sai và trả lời ngắn không gắn nhãn.
+
+### Phân biệt "Biết" và "Hiểu" khi cùng dùng một động từ SMART
+
+- Chỉ nhắc lại, tái hiện kiến thức/kĩ năng đơn thuần → **Biết**.
+- Đòi hỏi một trình tự logic, diễn đạt lại, hiểu mối quan hệ giữa các đơn vị kiến thức và kết nối chúng → **Hiểu**.
+- Cùng một động từ như "nêu", "trình bày", "mô tả": nếu học sinh chỉ cần nhớ lại hoặc nhận diện đúng câu chữ thì vẫn là Biết; nếu phải lập luận, sắp xếp, chỉ ra quan hệ thì mới là Hiểu.
+
+### Phân biệt "Hiểu" và "Vận dụng"
+
+- "Vận dụng" đôi khi thấp hơn "Hiểu": làm được một cách máy móc nhưng không giải thích được bản chất thì chưa chắc đã là Vận dụng.
+- Câu hỏi đưa ra một tình huống cụ thể (bối cảnh có ý nghĩa hoặc bối cảnh thực tiễn) có thể dùng để đánh giá mức Hiểu hoặc mức Vận dụng, nhưng thường được dùng cho mức Vận dụng nhiều hơn.
+- Câu đánh giá mức Hiểu đòi hỏi quá trình tư duy thiên về lập luận để tìm ra bản chất của tri thức tin học, không thiên về tính toán hoặc áp dụng tri thức tin học để nhận được một kết quả cụ thể — đó là đặc trưng của câu Vận dụng.
+- Không nâng mức chỉ vì câu dài hoặc dùng thuật ngữ khó.
+
+### Dấu hiệu nhận diện nhanh
+
+| Mức | Học sinh phải làm gì | Kiểu câu dẫn |
+|---|---|---|
+| Nhận biết (Biết) | Nhớ lại, nhận diện đúng định nghĩa, đặc điểm, phát biểu | "Phương án nào sau đây nêu đúng ...?" |
+| Thông hiểu (Hiểu) | Giải thích, so sánh, phân biệt, chỉ ra quan hệ để làm rõ bản chất | "Phương án nào sau đây giải thích đúng ...?" |
+| Vận dụng | Dùng dữ kiện tình huống (số liệu, cấu hình, hành động, ràng buộc) để tính toán hoặc quyết định | "Trong tình huống ..., phương án nào sau đây ...?" |
+
+### Thứ tự xét mức và kiểm tra
+
+Xét theo thứ tự, dừng ở mức đầu tiên thỏa:
+
+1. Trả lời được bằng nhớ lại hoặc nhận diện đúng câu chữ của bài → **Biết**.
+2. Phải so sánh, phân biệt, giải thích hoặc chỉ ra quan hệ mới chọn được → **Hiểu**.
+3. Chỉ chọn được khi dùng dữ kiện riêng của tình huống (số liệu, cấu hình, hành động, ràng buộc) để tính hoặc quyết định → **Vận dụng**.
+
+- Mức của câu do thao tác bắt buộc cao nhất quyết định, nhưng chỉ khi thao tác đó thực sự cần để chọn đáp án.
+- Có bối cảnh không tự động là Vận dụng: bỏ dữ kiện riêng mà vẫn chọn được đáp án thì hạ xuống Hiểu hoặc Biết.
+- Viết xong câu và tự giải mới gán nhãn; không gán nhãn trước rồi viết câu cho khớp.
+- Kiểm tra logic: chỉ từ câu dẫn và kiến thức bài phải loại được cả ba nhiễu, giữ đúng một đáp án; mỗi nhiễu sai vì một lỗi kiến thức nêu được trong lời giải; nếu phải thêm giả định ngoài câu dẫn mới loại được nhiễu thì viết lại câu.
+
+## 5. Cách viết tham khảo từ đề Tin học mã 0501
 
 Đối chiếu tệp `Đề_Tin học_0501.pdf` do người dùng cung cấp (4 trang). Áp dụng cách đặt nhiệm vụ và xây dựng phương án, không sao chép câu hỏi, số lượng câu hay phần thi tự chọn.
 
@@ -167,7 +205,7 @@ d) Hiện nay giáo viên và học sinh có thể đăng ký mượn thiết b�
 - **Áp dụng vào hệ thống:** Mỗi ý dùng kiến thức đã học để đánh giá đối tượng trong tình huống; ý đánh giá phải khai thác dữ kiện/ràng buộc cụ thể. Bối cảnh ngoài RAG vẫn được phép. Ví dụ trong prompt là trung tâm bảo hành đang xây dựng hệ thống dự đoán để phân luồng máy giặt; phương án huấn luyện và chọn hồ sơ kiểm tra nằm trong bối cảnh. Bốn ý đánh giá cách gán nhãn, chọn đầu vào, kiểm tra mô hình và dùng dự đoán để đặt linh kiện.
 - **Tự rà soát:** Tính hoặc mô phỏng kết quả, đối chiếu tên trường/thuộc tính, điều kiện, đơn vị và từng đáp án. Sai sót trong một phương án phải có chủ đích và được giải thích; không để lỗi vô ý trong dữ kiện làm câu hỏi mơ hồ.
 
-## 5. Nguyên tắc thiết kế câu hỏi và nguồn tham khảo
+## 6. Nguyên tắc thiết kế câu hỏi và nguồn tham khảo
 
 Trình tự áp dụng: xác định kiến thức/năng lực cần đo → chọn nhiệm vụ vận dụng → dựng bối cảnh đủ dữ kiện → viết từng ý và đáp án → rà soát cách hiểu khác. Đây là cách vận dụng các nguyên tắc dưới đây vào prompt; chất lượng câu sinh ra vẫn cần được kiểm tra thực tế.
 
