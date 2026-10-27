@@ -361,6 +361,25 @@ class AILifecycleTests(APITestCase):
         self.client.force_authenticate(self.d.outsider)
         self.assertEqual(self.client.post('/api/ai/quick-test/', {}, format='json').status_code, 400)
 
+    def test_teacher_quick_test_is_shared_with_the_whole_class(self):
+        self.client.force_authenticate(self.d.teacher)
+        res = self.client.post('/api/ai/quick-test/', {'class_id': str(self.d.classroom.pk)}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        quiz = Quiz.objects.get(pk=res.data['quiz_id'])
+        self.assertIsNone(quiz.assigned_to)
+        self.assertEqual(quiz.classroom, self.d.classroom)
+        self.assertEqual(quiz.created_by, self.d.teacher)
+
+        self.client.force_authenticate(self.d.student)
+        self.assertEqual(self.client.post(f'/api/exams/{quiz.pk}/start/', {}, format='json').status_code, 200)
+        self.client.force_authenticate(self.d.outsider)
+        self.assertEqual(self.client.post(f'/api/exams/{quiz.pk}/start/', {}, format='json').status_code, 403)
+
+    def test_teacher_quick_test_rejects_another_teachers_class(self):
+        self.client.force_authenticate(self.d.teacher)
+        res = self.client.post('/api/ai/quick-test/', {'class_id': str(self.d.other_class.pk)}, format='json')
+        self.assertEqual(res.status_code, 403)
+
     @patch('ai_core.views.ai_client.generate_content', return_value=SimpleNamespace(text='Lộ trình test'))
     def test_path_uses_only_current_students_completed_answers(self, generate):
         self.assertEqual(self.client.get('/api/ai/path/').status_code, 200)

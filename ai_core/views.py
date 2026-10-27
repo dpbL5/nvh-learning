@@ -941,62 +941,101 @@ QUAN TRỌNG - CẤM TUYỆT ĐỐI:
             return Response({"error": "Lỗi kết nối AI."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AIGenerateQuickTestView(APIView):
-    """Tạo nhanh 1 bài quiz ngẫu nhiên tập trung vào điểm yếu."""
+    """Tạo nhanh 1 bài quiz ngẫu nhiên tập trung vào điểm yếu.
+
+    - Học sinh: bài "phục thù" riêng, chỉ học sinh đó làm.
+    - Giáo viên/admin: bài "phục thù" cho cả lớp (assigned_to=None).
+    """
     permission_classes = [IsAuthenticated]
     throttle_classes = AI_THROTTLE_CLASSES
     throttle_scope = 'ai_generate'
 
+    @staticmethod
+    def _resolve_class_for_staff(request, user):
+        class_id = request.data.get('class_id') or request.query_params.get('class_id')
+        if class_id:
+            return _get_class_for_user(user, class_id)
+
+        role_name = getattr(user.role, 'name', None)
+        if role_name == 'admin' or user.is_superuser:
+            classes = Class.objects.all()
+        else:
+            classes = Class.objects.filter(teacher=user)
+        return classes.order_by('created_at').first()
+
     def post(self, request):
         user = request.user
         try:
-            from exams.models import Question, Quiz, QuizQuestion
-            import random
-            from django.utils import timezone
-            
-            # Logic: Collect questions the student got wrong recently
             from exams.models import StudentAnswer
-            wrong_answers = StudentAnswer.objects.filter(attempt__student=user, attempt__is_completed=True).order_by('-id')[:50]
-            wrong_questions = [ans.quiz_question.question for ans in wrong_answers if not ans.is_correct()]
-
-            target_class = None
             from classes.models import ClassStudent
-            if wrong_answers.exists():
-                target_class = wrong_answers[0].attempt.quiz.classroom
+            import random
 
-            if target_class and not ClassStudent.objects.filter(
-                classroom=target_class, student=user
-            ).exists():
+            role_name = getattr(user.role, 'name', None)
+            is_staff_user = role_name in ('teacher', 'admin') or user.is_superuser
+
+            if is_staff_user:
+                target_class = self._resolve_class_for_staff(request, user)
+                if target_class is None:
+                    return Response(
+                        {"error": "Bạn cần phụ trách ít nhất 1 lớp học để tạo bài ôn tập."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                wrong_answers = (
+                    StudentAnswer.objects
+                    .filter(attempt__is_completed=True, attempt__quiz__classroom=target_class)
+                    .select_related('quiz_question__question')
+                    .order_by('-id')[:100]
+                )
+                assigned_to = None
+            else:
+                wrong_answers = (
+                    StudentAnswer.objects
+                    .filter(attempt__student=user, attempt__is_completed=True)
+                    .select_related('quiz_question__question')
+                    .order_by('-id')[:50]
+                )
+
                 target_class = None
+                if wrong_answers.exists():
+                    target_class = wrong_answers[0].attempt.quiz.classroom
 
-            if not target_class:
-                cs = ClassStudent.objects.filter(student=user).first()
-                if cs:
-                    target_class = cs.classroom
+                if target_class and not ClassStudent.objects.filter(
+                    classroom=target_class, student=user
+                ).exists():
+                    target_class = None
 
-            if not target_class:
-                return Response({"error": "Bạn cần tham gia ít nhất 1 lớp học để tạo bài ôn tập."}, status=status.HTTP_400_BAD_REQUEST)
+                if not target_class:
+                    cs = ClassStudent.objects.filter(student=user).first()
+                    if cs:
+                        target_class = cs.classroom
 
-            pool = list(set(wrong_questions))
+                if not target_class:
+                    return Response(
+                        {"error": "Bạn cần tham gia ít nhất 1 lớp học để tạo bài ôn tập."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                assigned_to = user
+
+            pool = list({ans.quiz_question.question for ans in wrong_answers if not ans.is_correct()})
             if len(pool) < 5:
-                # Not enough wrong questions, pad with questions from the same subject
                 pool.extend(list(Question.objects.filter(subject=target_class.subject).order_by('?')[:10]))
                 pool = list(set(pool))
-                
+
             if not pool:
                 return Response({"error": "Không có đủ câu hỏi trong ngân hàng để tạo Quick Test."}, status=status.HTTP_400_BAD_REQUEST)
-                
+
             selected = random.sample(pool, min(10, len(pool)))
-            
+
             quiz = Quiz.objects.create(
                 title=f"Phục thù - Luyện tập thần tốc ngày {timezone.now().strftime('%d/%m')}",
                 description="Bài kiểm tra tự động tạo ra từ phân tích điểm yếu của bạn, tập trung vào các câu bạn đã làm sai.",
                 duration_minutes=len(selected) * 2,
                 classroom=target_class,
                 created_by=user,
-                assigned_to=user,
+                assigned_to=assigned_to,
                 is_published=True
             )
-            
+
             for idx, q in enumerate(selected):
                 QuizQuestion.objects.create(
                     quiz=quiz,
@@ -1007,7 +1046,9 @@ class AIGenerateQuickTestView(APIView):
             refresh_quiz_question_points(quiz)
 
             return Response({"quiz_id": quiz.id, "message": "Quick Test đã sẵn sàng!"})
-            
+
+        except (Http404, PermissionDenied):
+            raise
         except Exception:
             logger.exception('Quick test generation failed')
             return Response({"error": "Không thể tạo bài ôn tập. Vui lòng thử lại sau."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
