@@ -10,8 +10,10 @@ from django.test import SimpleTestCase
 
 from exams.models import Option, Question, QuizQuestion, StudentAnswer
 from exams.scoring import (
+    answers_payload_from_stored,
     calculate_score,
     coerce_answer_value,
+    has_unrecoverable_true_false,
     is_answer_correct,
     score_submission,
 )
@@ -248,7 +250,69 @@ class AnswerValueCoercionTests(SimpleTestCase):
                 self.assertEqual(coerce_answer_value(raw), expected)
 
 
-class StudentAnswerModelTests(SimpleTestCase):
+class StoredAnswerHelpersTests(SimpleTestCase):
+    def make_stored(self, quiz_question_id, selected_option_id=None,
+                    answer_text=None, answer_value=None):
+        return SimpleNamespace(
+            quiz_question_id=quiz_question_id,
+            selected_option_id=selected_option_id,
+            answer_text=answer_text,
+            answer_value=answer_value,
+        )
+
+    def test_answers_payload_from_stored_groups_rows_per_question(self):
+        payload = answers_payload_from_stored([
+            self.make_stored(1, selected_option_id=11),
+            self.make_stored(1, selected_option_id=12, answer_value=False),
+            self.make_stored(2, answer_text='12'),
+        ])
+
+        self.assertEqual(payload, {
+            1: [
+                {'quiz_question_id': 1, 'selected_option_id': 11,
+                 'answer_text': None, 'answer_value': None},
+                {'quiz_question_id': 1, 'selected_option_id': 12,
+                 'answer_text': None, 'answer_value': False},
+            ],
+            2: [
+                {'quiz_question_id': 2, 'selected_option_id': None,
+                 'answer_text': '12', 'answer_value': None},
+            ],
+        })
+
+    def test_has_unrecoverable_true_false_only_flags_missing_choice(self):
+        questions = {
+            1: make_question('true_false'),
+            2: make_question('multiple_choice'),
+            3: make_question('true_false'),
+        }
+
+        self.assertTrue(has_unrecoverable_true_false(questions, [
+            self.make_stored(1),
+        ]))
+        self.assertFalse(has_unrecoverable_true_false(questions, [
+            self.make_stored(1, answer_value=False),
+            self.make_stored(2),
+            self.make_stored(3, answer_value=True),
+        ]))
+        self.assertFalse(has_unrecoverable_true_false(questions, []))
+
+    def test_regrade_from_stored_answers_scores_true_false_by_choice(self):
+        quiz_question = make_quiz_question(1, make_question('true_false', [
+            make_option(1, True), make_option(2, False),
+        ]), 10)
+        payload = answers_payload_from_stored([
+            self.make_stored(1, selected_option_id=1, answer_value=True),
+            self.make_stored(1, selected_option_id=2, answer_value=False),
+        ])
+
+        decisions, earned_points, total_points = score_submission(
+            [quiz_question], payload,
+        )
+
+        self.assertEqual(calculate_score(earned_points, total_points), 10.0)
+        self.assertTrue(all(decision['is_correct'] for decision in decisions))
+
     def test_is_correct_honours_answer_value_for_true_false(self):
         question = Question(question_type='true_false')
         statement = Option(question=question, is_correct=False)

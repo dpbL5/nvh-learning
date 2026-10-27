@@ -102,6 +102,43 @@ def _decision(quiz_question, selected_option=None, answer_text=None,
     }
 
 
+def answers_payload_from_stored(stored_answers):
+    """Build a submission payload from persisted answer rows.
+
+    Each row only needs ``quiz_question_id``, ``selected_option_id``,
+    ``answer_text`` and ``answer_value`` attributes, so ORM rows and simple
+    mocks are both accepted. The result matches the shape expected by
+    :func:`score_submission`.
+    """
+    payload = {}
+    for answer in stored_answers:
+        payload.setdefault(answer.quiz_question_id, []).append({
+            'quiz_question_id': answer.quiz_question_id,
+            'selected_option_id': answer.selected_option_id,
+            'answer_text': answer.answer_text,
+            'answer_value': answer.answer_value,
+        })
+    return payload
+
+
+def has_unrecoverable_true_false(questions_by_id, stored_answers):
+    """Whether any stored true/false answer lost its Đúng/Sai choice.
+
+    Older clients only sent the selected statement id, so ``answer_value`` is
+    NULL. Without that value the student's choice cannot be reconstructed.
+    """
+    for answer in stored_answers:
+        question = questions_by_id.get(answer.quiz_question_id)
+        if question is None:
+            continue
+        if (
+            getattr(question, 'question_type', None) == QUESTION_TYPE_TRUE_FALSE
+            and answer.answer_value is None
+        ):
+            return True
+    return False
+
+
 def score_submission(quiz_questions, answers_by_question):
     """Grade a submission against in-memory quiz questions.
 
