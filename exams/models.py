@@ -194,6 +194,12 @@ class QuizAttempt(models.Model):
 
     class Meta:
         ordering = ['-start_time']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['quiz', 'student'],
+                name='uniq_quiz_attempt',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.student.username} - {self.quiz.title} ({self.score})"

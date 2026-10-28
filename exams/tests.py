@@ -198,7 +198,7 @@ class ExamsApiTests(APITestCase):
 	def test_teacher_progress_endpoint_for_teacher_and_admin(self):
 		# create completed attempts for current quiz
 		QuizAttempt.objects.create(quiz=self.quiz, student=self.student, score=8.0, is_completed=True)
-		QuizAttempt.objects.create(quiz=self.quiz, student=self.student, score=9.5, is_completed=True)
+		QuizAttempt.objects.create(quiz=self.quiz, student=self.student2, score=9.5, is_completed=True)
 
 		# teacher should see data
 		self._auth('teacher_exam', 'TeacherPass123')

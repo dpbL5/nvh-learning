@@ -365,7 +365,7 @@ class AdminReportView(APIView):
         for a in results:
             data.append({
                 'student_name': a.student.full_name,
-                'student_code': getattr(a.student.student_profile, 'student_code', 'N/A'),
+                'student_code': getattr(getattr(a.student, 'student_profile', None), 'student_code', 'N/A'),
                 'class_name': a.quiz.classroom.name,
                 'subject': a.quiz.classroom.subject.name,
                 'teacher_name': a.quiz.classroom.teacher.full_name,
@@ -413,7 +413,7 @@ class AdminExportView(APIView):
             ws.append([
                 idx,
                 a.student.full_name,
-                getattr(a.student.student_profile, 'student_code', 'N/A'),
+                getattr(getattr(a.student, 'student_profile', None), 'student_code', 'N/A'),
                 a.quiz.classroom.name,
                 a.quiz.classroom.subject.name,
                 a.quiz.classroom.teacher.full_name,
