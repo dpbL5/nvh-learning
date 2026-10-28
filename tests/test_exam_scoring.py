@@ -125,6 +125,23 @@ class TrueFalseScoringTests(SimpleTestCase):
         self.assertEqual([decision['is_correct'] for decision in decisions], [True, True, True, True])
         self.assertEqual([decision['answer_value'] for decision in decisions], [True, False, True, False])
 
+    def test_single_one_point_question_with_two_wrong_statements(self):
+        quiz_question = self.make_statements(points=1)
+
+        decisions, earned, total = score_submission([quiz_question], {
+            1: [
+                {'quiz_question_id': 1, 'selected_option_id': 1, 'answer_value': True},
+                {'quiz_question_id': 1, 'selected_option_id': 2, 'answer_value': True},   # sai
+                {'quiz_question_id': 1, 'selected_option_id': 3, 'answer_value': False},  # sai
+                {'quiz_question_id': 1, 'selected_option_id': 4, 'answer_value': False},
+            ]
+        })
+
+        self.assertEqual(sum(1 for d in decisions if d['is_correct']), 2)
+        self.assertEqual(earned, 0.5)
+        self.assertEqual(total, 1.0)
+        self.assertEqual(calculate_score(earned, total), 5.0)
+
     def test_marking_every_statement_true_against_key_gets_partial_credit(self):
         quiz_question = self.make_statements(points=8)
 
