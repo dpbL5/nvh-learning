@@ -163,6 +163,72 @@ class BrowserE2ETestCase(StaticLiveServerTestCase):
         self.page.locator("body").wait_for()
         self.page.get_by_text("Bảng điều khiển").first.wait_for()
 
+    def test_seeded_student_scores_full_marks_with_predetermined_answers(self):
+        """Seed a class/quiz with known answers, then answer them in the browser."""
+        seeded_student = User.objects.create_user(
+            username="student_seeded",
+            email="student.seeded@example.com",
+            password=PASSWORD,
+            role=self.student.role,
+        )
+        seeded_class = Class.objects.create(
+            name="Lớp Seed E2E", subject=self.subject, teacher=self.teacher,
+        )
+        ClassStudent.objects.create(classroom=seeded_class, student=seeded_student)
+        seeded_quiz = Quiz.objects.create(
+            title="Đề Seed E2E", classroom=seeded_class, created_by=self.teacher,
+            is_published=True, duration_minutes=30,
+        )
+
+        # Câu 1 (trắc nghiệm): đáp án đúng đã xác định trước là "4".
+        mcq = Question.objects.create(
+            subject=self.subject, created_by=self.teacher, question_type="multiple_choice",
+            text="2 + 2 bằng bao nhiêu?",
+        )
+        mcq_correct = Option.objects.create(question=mcq, text="4", is_correct=True)
+        Option.objects.create(question=mcq, text="5", is_correct=False)
+        QuizQuestion.objects.create(
+            quiz=seeded_quiz, question=mcq, order=1, points=1.0,
+        )
+
+        # Câu 2 (đúng/sai): đáp án đúng đã xác định trước là [Đ, S, Đ, S].
+        expected_pattern = [True, False, True, False]
+        tf = Question.objects.create(
+            subject=self.subject, created_by=self.teacher, question_type="true_false",
+            question_text="Về phép cộng",
+            context="Một học sinh thực hiện các phép tính đơn giản.",
+            text="Sau đây là các nhận định về các phép tính như sau:",
+        )
+        tf_options = [
+            Option.objects.create(question=tf, text=f"Nhận định {i + 1}", is_correct=value)
+            for i, value in enumerate(expected_pattern)
+        ]
+        tf_qq = QuizQuestion.objects.create(
+            quiz=seeded_quiz, question=tf, order=2, points=1.0,
+        )
+
+        # Xác nhận đáp án đã seed đúng như dự kiến trước khi làm bài.
+        self.assertTrue(mcq_correct.is_correct)
+        self.assertEqual([o.is_correct for o in tf_options], expected_pattern)
+
+        self.login(seeded_student)
+        self.page.goto(self.url(f"/exams/taker/{seeded_quiz.pk}/"))
+        self.page.get_by_role("button", name="Bắt đầu làm bài").click()
+        self.page.locator(".quiz-option").first.wait_for()
+
+        # Chọn đúng đáp án trắc nghiệm đã xác định trước.
+        self.page.locator(".quiz-option", has_text="4").first.click()
+
+        # Chọn đúng Đúng/Sai cho từng nhận định đã xác định trước.
+        for option, value in zip(tf_options, expected_pattern):
+            suffix = "t" if value else "f"
+            self.page.locator(f"#tf_{tf_qq.pk}_{option.pk}_{suffix}").click()
+
+        self.page.locator("#submitExamBtn").click()
+        self.page.locator("#submitConfirmModal").get_by_role("button", name="Nộp bài").click()
+        self.page.locator("#resultState").wait_for(state="visible")
+        self.assertEqual(self.page.locator("#finalScore").inner_text(), "10.0")
+
     def test_admin_panel_and_ai_api_error_are_visible_to_authorized_users(self):
         self.login(self.admin)
         self.page.goto(self.url("/admin-panel/"))
