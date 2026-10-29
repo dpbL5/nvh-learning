@@ -21,6 +21,7 @@ from .serializers import (
 )
 import hashlib
 import os
+import random
 import uuid
 import logging
 from io import BytesIO
@@ -850,12 +851,15 @@ class QuizStartView(APIView):
             serializer = QuizAttemptReviewSerializer(attempt, context={'request': request})
             return Response(serializer.data)
 
-        questions = (
+        questions = list(
             QuizQuestion.objects
             .filter(quiz=quiz)
             .select_related('question')
             .prefetch_related('question__options', 'question__question_images__image', 'question__question_images__uploaded_by')
         )
+        # Xáo trộn ổn định theo lượt thi: mỗi học sinh có thứ tự khác nhau,
+        # nhưng tải lại trang trong cùng lượt vẫn giữ nguyên thứ tự.
+        random.Random(attempt.pk).shuffle(questions)
         serializer = QuizQuestionPublicSerializer(questions, many=True)
 
         return Response({

@@ -64,7 +64,7 @@ async function startQuiz() {
 function renderQuestions() {
     const container = document.getElementById('questionsContainer');
     document.getElementById('totalQCount').textContent = quizQuestions.length;
-    quizQuestions.sort((a,b) => a.order - b.order);
+    // Giữ nguyên thứ tự đã được server xáo trộn cho lượt thi này.
     container.innerHTML = quizQuestions.map((qq, idx) => {
         const q = qq.question;
         const qType = q.question_type || 'multiple_choice';

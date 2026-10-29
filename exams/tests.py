@@ -195,6 +195,47 @@ class ExamsApiTests(APITestCase):
 		self.assertEqual(len(res.data['options']), 2)
 		self.assertEqual(res.data['options'][0]['text'], 'PA A')
 
+	def test_quiz_start_shuffles_questions_stably_per_attempt(self):
+		for index in range(5):
+			question = Question.objects.create(
+				question_type='multiple_choice',
+				text=f'Câu phụ {index}',
+				subject=self.subject,
+				created_by=self.teacher,
+			)
+			Option.objects.create(question=question, text='Đúng', is_correct=True)
+			Option.objects.create(question=question, text='Sai', is_correct=False)
+			QuizQuestion.objects.create(quiz=self.quiz, question=question, order=index + 2, points=1.0)
+
+		self._auth('student_exam', 'StudentPass123')
+		first = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		self.assertEqual(first.status_code, status.HTTP_200_OK)
+		first_ids = [row['id'] for row in first.data['questions']]
+
+		second = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		second_ids = [row['id'] for row in second.data['questions']]
+
+		# Cùng một lượt thi: tải lại không đổi thứ tự.
+		self.assertEqual(first_ids, second_ids)
+		# Vẫn đủ câu, chỉ đổi thứ tự.
+		canonical_ids = list(
+			QuizQuestion.objects.filter(quiz=self.quiz).order_by('order').values_list('id', flat=True)
+		)
+		self.assertEqual(sorted(first_ids), sorted(canonical_ids))
+
+		# Nộp bài theo ID vẫn chấm đúng dù thứ tự hiển thị đã xáo.
+		answers = []
+		for row in first.data['questions']:
+			question = Question.objects.get(pk=row['question']['id'])
+			correct = question.options.get(is_correct=True)
+			answers.append({'quiz_question_id': row['id'], 'selected_option_id': correct.pk})
+		res = self.client.post(
+			f"/api/exams/attempt/{first.data['attempt_id']}/submit/",
+			{'answers': answers}, format='json',
+		)
+		self.assertEqual(res.status_code, status.HTTP_200_OK)
+		self.assertEqual(res.data['score'], 10.0)
+
 	def test_teacher_progress_endpoint_for_teacher_and_admin(self):
 		# create completed attempts for current quiz
 		QuizAttempt.objects.create(quiz=self.quiz, student=self.student, score=8.0, is_completed=True)
