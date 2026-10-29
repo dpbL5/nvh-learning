@@ -534,8 +534,10 @@ window.explainWithAI = async function(qqId) {
     
     function optionText(opt) {
         var t = (opt.text || '').trim();
-        if (t) return t;
-        return (opt.content_json || []).filter(function(b){return b.type==='text'}).map(function(b){return b.value}).join(' ');
+        if (!t) {
+            t = (opt.content_json || []).filter(function(b){return b.type==='text'}).map(function(b){return b.value}).join(' ');
+        }
+        return t.replace(/^\s*(?:\(?[A-Da-d]\)|\d{1,2}[\.\)]|[A-Da-d][\.\)\/\-\:])\s*/, '').trim();
     }
     
     if (q.question_type === 'multiple_choice') {

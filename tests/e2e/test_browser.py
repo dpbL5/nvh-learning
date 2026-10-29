@@ -153,7 +153,7 @@ class BrowserE2ETestCase(StaticLiveServerTestCase):
         self.page.get_by_role("button", name="Bắt đầu làm bài").wait_for()
         self.page.get_by_role("button", name="Bắt đầu làm bài").click()
         self.page.locator(".quiz-option").first.wait_for()
-        self.page.locator(".quiz-option").first.click()
+        self.page.locator(".quiz-option", has_text="4").first.click()
         self.page.locator("#submitExamBtn").click()
         self.page.locator("#submitConfirmModal").get_by_role("button", name="Nộp bài").click()
         self.page.locator("#resultState").wait_for(state="visible")

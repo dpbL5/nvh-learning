@@ -882,6 +882,14 @@ class AIGeneratorService:
                     
                     # CLEAN LABEL (Remove A. B. C. D. from text if exists)
                     opt_text = AIGeneratorService._clean_option_text(opt_text)
+                    for block in opt_content:
+                        if (
+                            isinstance(block, dict)
+                            and block.get('type') == 'text'
+                            and isinstance(block.get('value'), str)
+                        ):
+                            block['value'] = AIGeneratorService._clean_option_text(block['value'])
+                            break
                     
                     # Kiểm tra từ cấm -> sinh lại phương án khác
                     lower_text = opt_text.lower()

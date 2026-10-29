@@ -60,13 +60,38 @@ const QuestionRenderer = {
      */
     renderOption(opt, questionImages = [], options = {}) {
         const imageMap = { ...(window.extractedImagesMap || {}), ...this._buildImageMap(questionImages) };
-        const text = (opt.text || '').trim();
-        const blocks = Array.isArray(opt.content_json) ? opt.content_json : [];
+        const text = this._stripOptionLabel((opt.text || '').trim());
+        let blocks = Array.isArray(opt.content_json) ? opt.content_json : [];
+        blocks = this._stripOptionLabelFromBlocks(blocks);
         
         if (blocks.length > 0) {
             return this._renderBlocks(blocks, imageMap);
         }
         return this._renderPlainInline(text, imageMap);
+    },
+
+    _stripOptionLabel(text) {
+        if (!text) return text;
+        return text
+            .replace(/^\s*(?:\(?[A-Da-d]\)|\d{1,2}[\.\)]|[A-Da-d][\.\)\/\-\:])\s*/, '')
+            .trim();
+    },
+
+    _stripOptionLabelFromBlocks(blocks) {
+        if (!Array.isArray(blocks) || blocks.length === 0) return blocks;
+        let stripped = false;
+        return blocks.map((block) => {
+            if (
+                !stripped
+                && block
+                && block.type === 'text'
+                && typeof block.value === 'string'
+            ) {
+                stripped = true;
+                return { ...block, value: this._stripOptionLabel(block.value) };
+            }
+            return block;
+        });
     },
 
     // --- Private Helpers ---

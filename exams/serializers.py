@@ -1,6 +1,39 @@
+import copy
+import re
+
 from rest_framework import serializers
 from .models import Question, Option, Quiz, QuizQuestion, QuizAttempt, StudentAnswer, ImageBank, QuestionImage
+from .scoring import shuffle_mcq_options
 from classes.models import Subject, Class
+
+
+OPTION_LABEL_RE = re.compile(
+    r'^\s*(?:\(?[A-Da-d]\)|\d{1,2}[\.\)]|[A-Da-d][\.\)\/\-\:])\s*'
+)
+
+
+def strip_option_label(value):
+    """Bỏ nhãn A./B)/c./1. ở đầu nội dung phương án (giao diện tự đánh nhãn)."""
+    if not isinstance(value, str):
+        return value
+    return OPTION_LABEL_RE.sub('', value, count=1).strip()
+
+
+def clean_option_payload(data):
+    data['text'] = strip_option_label(data.get('text'))
+    blocks = data.get('content_json')
+    if isinstance(blocks, list):
+        cleaned = copy.deepcopy(blocks)
+        for block in cleaned:
+            if (
+                isinstance(block, dict)
+                and block.get('type') == 'text'
+                and isinstance(block.get('value'), str)
+            ):
+                block['value'] = strip_option_label(block['value'])
+                break
+        data['content_json'] = cleaned
+    return data
 
 
 class OptionSerializer(serializers.ModelSerializer):
@@ -349,6 +382,9 @@ class OptionPublicSerializer(serializers.ModelSerializer):
         model = Option
         fields = ['id', 'text', 'content_json']  # Không phơi bày is_correct
 
+    def to_representation(self, instance):
+        return clean_option_payload(super().to_representation(instance))
+
 
 class QuestionPublicSerializer(serializers.ModelSerializer):
     options = OptionPublicSerializer(many=True)
@@ -373,6 +409,9 @@ class OptionReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Option
         fields = ['id', 'text', 'content_json', 'is_correct', 'explanation']
+
+    def to_representation(self, instance):
+        return clean_option_payload(super().to_representation(instance))
 
 
 class QuestionReviewSerializer(serializers.ModelSerializer):
@@ -419,5 +458,11 @@ class QuizAttemptReviewSerializer(serializers.ModelSerializer):
         fields = ['id', 'quiz', 'score', 'is_completed', 'answers', 'questions']
 
     def get_questions(self, obj):
-        quiz_questions = QuizQuestion.objects.filter(quiz=obj.quiz).select_related('question').prefetch_related('question__options', 'question__question_images__image')
+        quiz_questions = list(
+            QuizQuestion.objects.filter(quiz=obj.quiz)
+            .select_related('question')
+            .prefetch_related('question__options', 'question__question_images__image')
+        )
+        for quiz_question in quiz_questions:
+            shuffle_mcq_options(quiz_question, obj.id)
         return QuizQuestionReviewSerializer(quiz_questions, many=True, context=self.context).data

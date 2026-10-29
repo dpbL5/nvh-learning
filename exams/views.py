@@ -13,7 +13,7 @@ from django.core.files.base import ContentFile
 from datetime import timedelta
 from classes.models import Class, ClassStudent
 from .models import Question, Option, Quiz, QuizQuestion, QuizAttempt, StudentAnswer, ImageBank, QuestionImage
-from .scoring import calculate_score, score_submission
+from .scoring import calculate_score, score_submission, shuffle_mcq_options
 from .serializers import (
     QuestionSerializer, OptionSerializer, QuizSerializer,
     QuizQuestionSerializer, QuizAttemptSerializer, QuizQuestionPublicSerializer,
@@ -860,6 +860,8 @@ class QuizStartView(APIView):
         # Xáo trộn ổn định theo lượt thi: mỗi học sinh có thứ tự khác nhau,
         # nhưng tải lại trang trong cùng lượt vẫn giữ nguyên thứ tự.
         random.Random(attempt.pk).shuffle(questions)
+        for quiz_question in questions:
+            shuffle_mcq_options(quiz_question, attempt.pk)
         serializer = QuizQuestionPublicSerializer(questions, many=True)
 
         return Response({

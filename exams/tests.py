@@ -1,3 +1,5 @@
+import random
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -235,6 +237,61 @@ class ExamsApiTests(APITestCase):
 		)
 		self.assertEqual(res.status_code, status.HTTP_200_OK)
 		self.assertEqual(res.data['score'], 10.0)
+
+	def test_quiz_start_shuffles_options_and_strips_embedded_labels(self):
+		question = Question.objects.create(
+			question_type='multiple_choice',
+			text='Chọn phương án đúng',
+			subject=self.subject,
+			created_by=self.teacher,
+		)
+		options = [
+			Option.objects.create(
+				question=question,
+				text=f'{label}. Nội dung {index}',
+				is_correct=(index == 0),
+			)
+			for index, label in enumerate('ABCD')
+		]
+		QuizQuestion.objects.create(quiz=self.quiz, question=question, order=2, points=1.0)
+
+		self._auth('student_exam', 'StudentPass123')
+		first = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		row = next(r for r in first.data['questions'] if r['question']['id'] == question.id)
+
+		# Nhãn A./B./... bị bỏ khỏi nội dung phương án.
+		self.assertEqual(
+			sorted(option['text'] for option in row['question']['options']),
+			['Nội dung 0', 'Nội dung 1', 'Nội dung 2', 'Nội dung 3'],
+		)
+
+		# Thứ tự phương án được xáo theo seed của lượt thi.
+		returned_ids = [option['id'] for option in row['question']['options']]
+		expected_ids = [option.id for option in options]
+		random.Random(f"{first.data['attempt_id']}:{row['id']}:options").shuffle(expected_ids)
+		self.assertEqual(returned_ids, expected_ids)
+
+		# Tải lại trong cùng lượt không đổi thứ tự.
+		second = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		row2 = next(r for r in second.data['questions'] if r['question']['id'] == question.id)
+		self.assertEqual(returned_ids, [option['id'] for option in row2['question']['options']])
+
+		# Trang xem lại dùng cùng thứ tự phương án với lúc làm bài.
+		submit = self.client.post(
+			f"/api/exams/attempt/{first.data['attempt_id']}/submit/",
+			{'answers': [
+				{'quiz_question_id': row['id'], 'selected_option_id': options[0].id},
+			]},
+			format='json',
+		)
+		self.assertEqual(submit.status_code, status.HTTP_200_OK)
+		review_row = next(
+			r for r in submit.data['questions'] if r['question']['id'] == question.id
+		)
+		self.assertEqual(
+			[option['id'] for option in review_row['question']['options']],
+			returned_ids,
+		)
 
 	def test_teacher_progress_endpoint_for_teacher_and_admin(self):
 		# create completed attempts for current quiz
