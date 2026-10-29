@@ -395,7 +395,7 @@ class StudentAnswerReviewSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = StudentAnswer
-        fields = ['id', 'quiz_question', 'selected_option', 'answer_text', 'is_correct']
+        fields = ['id', 'quiz_question', 'selected_option', 'answer_text', 'answer_value', 'is_correct']
 
     def get_is_correct(self, obj):
         return obj.is_correct()

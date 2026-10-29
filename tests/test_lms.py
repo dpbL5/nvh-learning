@@ -406,10 +406,11 @@ class AILifecycleTests(APITestCase):
     def test_explanation_validation_and_output(self, explain):
         self.assertEqual(self.client.post('/api/ai/explain-wrong-answer/', {}, format='json').status_code, 400)
         res = self.client.post('/api/ai/explain-wrong-answer/', {
+            'question_type': 'multiple_choice',
             'question_text': self.d.mc.text, 'correct_answer': '2', 'student_answer': '3',
         }, format='json')
         self.assertEqual(res.data['explanation'], 'Giải thích test')
-        explain.assert_called_once()
+        self.assertEqual(explain.call_args.kwargs['question_type'], 'multiple_choice')
 
     @patch('ai_core.views.AIGeneratorService.generate_from_rag', return_value=[{'text': 'Question'}])
     def test_selected_document_cannot_belong_to_another_class(self, generate):

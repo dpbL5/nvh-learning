@@ -557,8 +557,11 @@ window.explainWithAI = async function(qqId) {
             
             var ans = studentAns.find(function(a){return a.selected_option === opt.id;});
             if (ans) {
-                var studentChoseCorrect = (ans.is_correct === opt.is_correct) ? opt.is_correct : !opt.is_correct;
-                studentText += String.fromCharCode(97+i) + ') ' + optText + ' -> ' + (studentChoseCorrect ? 'Đúng' : 'Sai') + '\\n';
+                // Ưu tiên answer_value; với dữ liệu cũ suy ra từ is_correct.
+                var studentChose = (typeof ans.answer_value === 'boolean')
+                    ? ans.answer_value
+                    : (ans.is_correct ? opt.is_correct : !opt.is_correct);
+                studentText += String.fromCharCode(97+i) + ') ' + optText + ' -> ' + (studentChose ? 'Đúng' : 'Sai') + '\\n';
             } else {
                 studentText += String.fromCharCode(97+i) + ') (Bỏ trống)\\n';
             }
@@ -573,6 +576,7 @@ window.explainWithAI = async function(qqId) {
             method: 'POST',
             headers: quizAuthHeaders(),
             body: JSON.stringify({
+                question_type: q.question_type,
                 question_text: qText,
                 correct_answer: correctText,
                 student_answer: studentText

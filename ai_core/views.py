@@ -1075,6 +1075,9 @@ class AIExplainWrongAnswerView(APIView):
         if getattr(request.user.role, 'name', None) not in ['student', 'teacher', 'admin'] and not request.user.is_superuser:
             return Response({"error": "Bạn không có quyền thực hiện chức năng này."}, status=status.HTTP_403_FORBIDDEN)
             
+        question_type = request.data.get('question_type')
+        if question_type not in ('multiple_choice', 'true_false', 'short_answer'):
+            question_type = None
         question_text = request.data.get('question_text')
         correct_answer = request.data.get('correct_answer')
         student_answer = request.data.get('student_answer')
@@ -1086,7 +1089,8 @@ class AIExplainWrongAnswerView(APIView):
             explanation = AIGeneratorService.explain_wrong_answer(
                 question_text=str(question_text)[:2000],
                 correct_answer=str(correct_answer)[:500],
-                student_answer=str(student_answer)[:500]
+                student_answer=str(student_answer)[:500],
+                question_type=question_type,
             )
             return Response({"explanation": explanation})
         except Exception:

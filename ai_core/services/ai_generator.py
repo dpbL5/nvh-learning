@@ -1213,30 +1213,52 @@ class AIGeneratorService:
         resp = ai_client.generate_content(prompt, model=RAG_GENERATION_MODEL)
         return resp.text
 
+    EXPLAIN_QUESTION_TYPE_INSTRUCTIONS = {
+        'multiple_choice': (
+            'Đây là câu trắc nghiệm chọn một đáp án. Chỉ rõ phương án học sinh chọn sai ở đâu, '
+            'vì sao đáp án đúng là chính xác và các phương án còn lại sai ở đâu. '
+            'Nếu học sinh bỏ trống, hãy giải thích đáp án đúng.'
+        ),
+        'true_false': (
+            'Đây là câu Đúng/Sai gồm bốn nhận định độc lập. Hãy giải thích từng nhận định a), b), c), d): '
+            'nêu Đúng/Sai và lý do. Tập trung vào những nhận định học sinh làm sai; '
+            'nếu học sinh bỏ trống ý nào, giải thích ý đó. Không coi cả câu là sai hoàn toàn '
+            'khi học sinh vẫn làm đúng một phần.'
+        ),
+        'short_answer': (
+            'Đây là câu trả lời ngắn. Nêu đáp án đúng, chỉ ra lỗi trong câu trả lời của học sinh (nếu có) '
+            'và cách tính/viết đúng. Nếu học sinh bỏ trống, hướng dẫn cách giải.'
+        ),
+    }
+
     @classmethod
-    def explain_wrong_answer(cls, question_text: str, correct_answer: str, student_answer: str) -> str:
-        """Sử dụng AI để giải thích ngắn gọn nguyên nhân học sinh chọn sai và tại sao đáp án kia lại đúng."""
-        # 1. Tạo cache key dựa trên hash của câu hỏi và câu trả lời
-        hash_str = f"{question_text}|{correct_answer}|{student_answer}".encode('utf-8')
+    def explain_wrong_answer(cls, question_text: str, correct_answer: str, student_answer: str,
+                             question_type: str = None) -> str:
+        """Sử dụng AI để giải thích câu hỏi làm sai theo từng loại câu hỏi."""
+        # 1. Tạo cache key dựa trên hash của loại câu hỏi, câu hỏi và câu trả lời
+        hash_str = f"{question_type}|{question_text}|{correct_answer}|{student_answer}".encode('utf-8')
         cache_key = f"ai_explain_{hashlib.md5(hash_str).hexdigest()}"
         
         # 2. Kiểm tra cache
         cached_explanation = cache.get(cache_key)
         if cached_explanation:
             return cached_explanation
+        
+        type_instruction = cls.EXPLAIN_QUESTION_TYPE_INSTRUCTIONS.get(question_type)
+        type_block = f'\nLOẠI CÂU HỎI:\n{type_instruction}\n' if type_instruction else ''
             
         # 3. Prompt yêu cầu AI giải thích
         prompt = f"""
 Bạn là một gia sư AI thân thiện của NVH Learning. Học sinh vừa làm sai một câu hỏi.
-Nhiệm vụ: Giải thích giúp học sinh hiểu ĐÁP ÁN ĐÚNG và vì sao ĐÁP ÁN CỦA HỌC SINH lại sai, hoặc cung cấp bổ sung kiến thức cần thiết.
-
+Nhiệm vụ: Giải thích giúp học sinh hiểu ĐÁP ÁN ĐÚNG và vì sao CÂU TRẢ LỜI CỦA HỌC SINH chưa đúng, hoặc bổ sung kiến thức cần thiết.
+{type_block}
 Câu hỏi:
 {question_text}
 
-Đáp án ĐÚNG:
+Đáp án đúng:
 {correct_answer}
 
-Đáp án học sinh đã chọn (SAI):
+Câu trả lời của học sinh:
 {student_answer}
 
 YÊU CẦU QUAN TRỌNG: 
