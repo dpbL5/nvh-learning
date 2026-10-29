@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 MAX_IMAGE_PIXELS = 40_000_000
 ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'}
 ALLOWED_IMAGE_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'}
+QUESTION_TYPE_DISPLAY_ORDER = {'multiple_choice': 0, 'short_answer': 1, 'true_false': 2}
 
 
 def _is_valid_image_bytes(data):
@@ -859,7 +860,11 @@ class QuizStartView(APIView):
         )
         # Xáo trộn ổn định theo lượt thi: mỗi học sinh có thứ tự khác nhau,
         # nhưng tải lại trang trong cùng lượt vẫn giữ nguyên thứ tự.
+        # Trắc nghiệm luôn đứng đầu, đúng/sai luôn đứng cuối.
         random.Random(attempt.pk).shuffle(questions)
+        questions.sort(
+            key=lambda qq: QUESTION_TYPE_DISPLAY_ORDER.get(qq.question.question_type, 1)
+        )
         for quiz_question in questions:
             shuffle_mcq_options(quiz_question, attempt.pk)
         serializer = QuizQuestionPublicSerializer(questions, many=True)

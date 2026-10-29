@@ -238,6 +238,33 @@ class ExamsApiTests(APITestCase):
 		self.assertEqual(res.status_code, status.HTTP_200_OK)
 		self.assertEqual(res.data['score'], 10.0)
 
+	def test_quiz_start_orders_mcq_first_and_true_false_last(self):
+		for question_type, order in (
+			('true_false', 2),
+			('multiple_choice', 3),
+			('true_false', 4),
+			('short_answer', 5),
+		):
+			question = Question.objects.create(
+				question_type=question_type,
+				text=f'Câu {question_type} {order}',
+				subject=self.subject,
+				created_by=self.teacher,
+			)
+			QuizQuestion.objects.create(quiz=self.quiz, question=question, order=order, points=1.0)
+
+		self._auth('student_exam', 'StudentPass123')
+		res = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+		types = [row['question']['question_type'] for row in res.data['questions']]
+		self.assertEqual(len(types), 5)
+		# Trắc nghiệm (kể cả câu có sẵn trong setUp) đứng đầu.
+		self.assertEqual(types[:2], ['multiple_choice', 'multiple_choice'])
+		# Đúng/sai đứng cuối.
+		self.assertEqual(types[-2:], ['true_false', 'true_false'])
+		self.assertEqual(types[2], 'short_answer')
+
 	def test_quiz_start_shuffles_options_and_strips_embedded_labels(self):
 		question = Question.objects.create(
 			question_type='multiple_choice',
