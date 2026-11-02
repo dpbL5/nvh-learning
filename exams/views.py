@@ -677,9 +677,9 @@ class QuizCopyView(APIView):
                     description=source.description,
                     classroom=classroom,
                     duration_minutes=source.duration_minutes,
-                    is_published=False,
-                    publish_at=None,
-                    due_date=None,
+                    is_published=source.is_published,
+                    publish_at=source.publish_at,
+                    due_date=source.due_date,
                     assigned_to=None,
                     created_by=request.user,
                 )

@@ -215,6 +215,12 @@ class ClassQuizAndReportTests(APITestCase):
         )
         source_points = list(self.d.quiz.quiz_questions.order_by('order').values_list('points', flat=True))
 
+        publish_at = timezone.now().replace(microsecond=0) - timedelta(days=1)
+        due_date = timezone.now().replace(microsecond=0) + timedelta(days=7)
+        Quiz.objects.filter(pk=self.d.quiz.pk).update(
+            is_published=True, publish_at=publish_at, due_date=due_date,
+        )
+
         res = self.client.post(f'/api/exams/{self.d.quiz.pk}/copy/', {
             'classroom_ids': [str(extra_class.pk), str(self.d.other_class.pk)],
         }, format='json')
@@ -226,7 +232,9 @@ class ClassQuizAndReportTests(APITestCase):
 
         copied = Quiz.objects.get(pk=res.data['created'][0]['id'])
         self.assertEqual(copied.classroom_id, extra_class.pk)
-        self.assertFalse(copied.is_published)
+        self.assertTrue(copied.is_published)
+        self.assertEqual(copied.publish_at, publish_at)
+        self.assertEqual(copied.due_date, due_date)
         self.assertEqual(copied.title, f'{self.d.quiz.title} (bản sao)')
         self.assertEqual(QuizAttempt.objects.filter(quiz=copied).count(), 0)
         self.assertEqual(copied.quiz_questions.count(), 2)
