@@ -17,6 +17,7 @@ from rest_framework.test import APITestCase
 from ai_core.models import Document, DocumentChunk
 from ai_core.services.cloudinary_service import cloudinary_asset_from_url, get_upload_signature, is_allowed_remote_url
 from ai_core.services.docx_parser import DocxNativeParser
+from classes.models import Class
 from exams.models import ImageBank, Question, QuestionImage
 from tests.support import seed_lms
 
@@ -342,3 +343,88 @@ class ImportAndImageTests(APITestCase):
         self.d.mc.refresh_from_db()
         self.assertEqual(self.d.mc.text, '1 + 1 bằng bao nhiêu?')
         self.assertEqual(self.d.mc.options.count(), 2)
+
+
+class DocumentManageTests(APITestCase):
+    def setUp(self):
+        self.d = seed_lms()
+        self.client.force_authenticate(self.d.teacher)
+        self.doc = Document.objects.create(
+            classroom=self.d.classroom, title='Giáo trình AI',
+            file_url=ASSET_URL, cloudinary_public_id='tests/bài.docx',
+        )
+        DocumentChunk.objects.create(document=self.doc, chunk_index=0, content='Chương 1')
+        DocumentChunk.objects.create(document=self.doc, chunk_index=1, content='Chương 2')
+
+    def make_target_class(self):
+        return Class.objects.create(name='Lớp nhận tài liệu', subject=self.d.subject, teacher=self.d.teacher)
+
+    def test_rename_updates_title(self):
+        res = self.client.patch(f'/api/ai/documents/{self.doc.pk}/', {'title': 'Giáo trình AI (mới)'}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.doc.refresh_from_db()
+        self.assertEqual(self.doc.title, 'Giáo trình AI (mới)')
+
+    def test_rename_rejects_blank_title_and_missing_doc(self):
+        self.assertEqual(self.client.patch(f'/api/ai/documents/{self.doc.pk}/', {'title': ''}, format='json').status_code, 400)
+        self.assertEqual(self.client.patch('/api/ai/documents/999999/', {'title': 'X'}, format='json').status_code, 404)
+        self.doc.refresh_from_db()
+        self.assertEqual(self.doc.title, 'Giáo trình AI')
+
+    def test_rename_forbidden_for_non_managers(self):
+        url = f'/api/ai/documents/{self.doc.pk}/'
+        for user in (self.d.student, self.d.outsider, self.d.other_teacher):
+            with self.subTest(user=user.username):
+                self.client.force_authenticate(user)
+                self.assertEqual(self.client.patch(url, {'title': 'Hack'}, format='json').status_code, 403)
+        self.doc.refresh_from_db()
+        self.assertEqual(self.doc.title, 'Giáo trình AI')
+
+    def test_copy_copies_document_and_chunks_to_owned_classes(self):
+        target = self.make_target_class()
+        res = self.client.post(f'/api/ai/documents/{self.doc.pk}/copy/', {
+            'classroom_ids': [str(target.pk), str(self.d.other_class.pk), 'not-a-uuid'],
+        }, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(len(res.data['created']), 1)
+        self.assertEqual(
+            [item['reason'] for item in res.data['skipped']],
+            ['permission_denied', 'invalid_id'],
+        )
+
+        copied = Document.objects.get(pk=res.data['created'][0]['id'])
+        self.assertEqual(copied.classroom_id, target.pk)
+        self.assertEqual(copied.title, 'Giáo trình AI (bản sao)')
+        self.assertEqual(copied.file_url, self.doc.file_url)
+        self.assertEqual(copied.cloudinary_public_id, self.doc.cloudinary_public_id)
+        self.assertEqual(
+            list(copied.chunks.order_by('chunk_index').values_list('content', flat=True)),
+            ['Chương 1', 'Chương 2'],
+        )
+        self.assertTrue(Document.objects.filter(pk=self.doc.pk, classroom=self.d.classroom).exists())
+
+    def test_copy_validates_input_and_permissions(self):
+        for user in (self.d.student, self.d.outsider, self.d.other_teacher):
+            self.client.force_authenticate(user)
+            self.assertEqual(
+                self.client.post(f'/api/ai/documents/{self.doc.pk}/copy/', {'classroom_ids': [str(self.make_target_class().pk)]}, format='json').status_code,
+                403,
+            )
+        self.client.force_authenticate(self.d.teacher)
+        self.assertEqual(self.client.post(f'/api/ai/documents/{self.doc.pk}/copy/', {}, format='json').status_code, 400)
+        self.assertEqual(self.client.post('/api/ai/documents/999999/copy/', {'classroom_ids': [str(self.make_target_class().pk)]}, format='json').status_code, 404)
+
+    @patch('ai_core.views.delete_from_cloudinary')
+    def test_deleting_original_keeps_shared_cloudinary_asset_until_last_copy(self, delete):
+        target = self.make_target_class()
+        self.client.post(f'/api/ai/documents/{self.doc.pk}/copy/', {'classroom_ids': [str(target.pk)]}, format='json')
+        copied = Document.objects.get(classroom=target)
+
+        self.assertEqual(self.client.delete(f'/api/ai/documents/{self.doc.pk}/').status_code, 204)
+        delete.assert_not_called()
+        self.assertTrue(Document.objects.filter(pk=copied.pk).exists())
+
+        self.assertEqual(self.client.delete(f'/api/ai/documents/{copied.pk}/').status_code, 204)
+        delete.assert_called_once_with('tests/bài.docx', resource_type='raw')
+        self.assertFalse(Document.objects.exists())
+        self.assertFalse(DocumentChunk.objects.exists())

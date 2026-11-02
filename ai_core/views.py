@@ -2,6 +2,7 @@ import os
 import json
 import zipfile
 import tempfile
+import uuid
 import docx
 import hashlib
 import re
@@ -10,6 +11,7 @@ import logging
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 import time
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -31,6 +33,7 @@ from exams.views import (
     IsTeacherOrAdmin,
     _get_owned_quiz,
     refresh_quiz_question_points,
+    _is_admin_user,
 )
 from .services.ai_generator import AIGeneratorService, NoQuestionsGenerated
 from .services.ai_provider import get_client
@@ -368,28 +371,131 @@ class UploadClassDocumentView(APIView):
                     pass
             return Response({"error": "Lỗi upload tài liệu. Vui lòng thử lại sau."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class DeleteClassDocumentView(APIView):
-    """Giáo viên xoá tài liệu RAG, các chunks tự động cascade."""
+def _get_doc_for_user(request, doc_id):
+    """Lấy tài liệu RAG và kiểm tra quyền giáo viên/admin phụ trách lớp chứa nó."""
+    try:
+        doc = Document.objects.select_related('classroom').get(id=doc_id)
+    except Document.DoesNotExist:
+        raise Http404('Không tìm thấy tài liệu.')
+
+    role_name = getattr(request.user.role, 'name', None)
+    if role_name not in ['teacher', 'admin'] and not request.user.is_superuser:
+        raise PermissionDenied('Chỉ giáo viên mới có quyền quản lý tài liệu.')
+
+    _get_class_for_user(request.user, doc.classroom_id)
+    return doc
+
+
+class DocumentDetailView(APIView):
+    """Đổi tên hoặc xoá một tài liệu RAG (giáo viên phụ trách lớp hoặc admin)."""
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request, doc_id):
-        user = request.user
-        role_name = getattr(user.role, 'name', None)
-        if role_name not in ['teacher', 'admin'] and not user.is_superuser:
-            return Response({"error": "Chỉ giáo viên mới có quyền xoá tài liệu."}, status=status.HTTP_403_FORBIDDEN)
-            
+    def patch(self, request, doc_id):
         try:
-            doc = Document.objects.select_related('classroom').get(id=doc_id)
-        except Document.DoesNotExist:
+            doc = _get_doc_for_user(request, doc_id)
+        except Http404:
             return Response({"error": "Không tìm thấy tài liệu."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied:
+            return Response({"error": "Bạn không có quyền sửa tài liệu này."}, status=status.HTTP_403_FORBIDDEN)
 
-        _get_class_for_user(user, doc.classroom_id)
+        serializer = DocumentSerializer(doc, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
-        if doc.cloudinary_public_id:
+    def delete(self, request, doc_id):
+        try:
+            doc = _get_doc_for_user(request, doc_id)
+        except Http404:
+            return Response({"error": "Không tìm thấy tài liệu."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied:
+            return Response({"error": "Bạn không có quyền xoá tài liệu này."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Bản sao giữa các lớp dùng chung asset Cloudinary; chỉ xoá file khi không còn bản ghi nào tham chiếu.
+        shared_with_other_docs = doc.cloudinary_public_id and Document.objects.filter(
+            cloudinary_public_id=doc.cloudinary_public_id
+        ).exclude(pk=doc.pk).exists()
+
+        if doc.cloudinary_public_id and not shared_with_other_docs:
             delete_from_cloudinary(doc.cloudinary_public_id, resource_type='raw')
 
         doc.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DocumentCopyView(APIView):
+    """Sao chép tài liệu RAG (kèm chunks đã nhúng) sang một hoặc nhiều lớp của giáo viên."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, doc_id):
+        user = request.user
+        try:
+            source = _get_doc_for_user(request, doc_id)
+        except Http404:
+            return Response({"error": "Không tìm thấy tài liệu."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied:
+            return Response({"error": "Bạn không có quyền sao chép tài liệu này."}, status=status.HTTP_403_FORBIDDEN)
+
+        classroom_ids = request.data.get('classroom_ids') or []
+        if not isinstance(classroom_ids, list) or not classroom_ids:
+            return Response({"error": "Chọn ít nhất một lớp."}, status=status.HTTP_400_BAD_REQUEST)
+
+        suffix = request.data.get('title_suffix')
+        suffix = ' (bản sao)' if suffix is None else str(suffix)[:50]
+
+        source_chunks = list(source.chunks.order_by('chunk_index'))
+
+        created = []
+        skipped = []
+        seen = set()
+
+        for raw_id in classroom_ids:
+            try:
+                classroom_id = uuid.UUID(str(raw_id))
+            except (TypeError, ValueError, AttributeError):
+                skipped.append({'classroom_id': str(raw_id), 'reason': 'invalid_id'})
+                continue
+            if classroom_id in seen:
+                continue
+            seen.add(classroom_id)
+
+            classroom = Class.objects.filter(pk=classroom_id).first()
+            if classroom is None:
+                skipped.append({'classroom_id': str(classroom_id), 'reason': 'not_found'})
+                continue
+            if not (_is_admin_user(user) or classroom.teacher_id == user.id):
+                skipped.append({'classroom_id': str(classroom_id), 'reason': 'permission_denied'})
+                continue
+
+            with transaction.atomic():
+                copied_doc = Document.objects.create(
+                    classroom=classroom,
+                    title=(source.title + suffix)[:255],
+                    file_url=source.file_url,
+                    cloudinary_public_id=source.cloudinary_public_id,
+                )
+                DocumentChunk.objects.bulk_create([
+                    DocumentChunk(
+                        document=copied_doc,
+                        chunk_index=chunk.chunk_index,
+                        content=chunk.content,
+                        embedding=chunk.embedding,
+                    )
+                    for chunk in source_chunks
+                ])
+            created.append(copied_doc)
+
+        if not created:
+            return Response(
+                {'created': [], 'skipped': skipped},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = DocumentSerializer(created, many=True)
+        return Response(
+            {'created': serializer.data, 'skipped': skipped},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ─── AI QUESTION GENERATOR VIEWS ────────────────────────────────────────────
@@ -1027,7 +1133,7 @@ class AIGenerateQuickTestView(APIView):
             selected = random.sample(pool, min(10, len(pool)))
 
             quiz = Quiz.objects.create(
-                title=f"Phục thù - Luyện tập thần tốc ngày {timezone.now().strftime('%d/%m')}",
+                title="Luyện tập nhanh",
                 description="Bài kiểm tra tự động tạo ra từ phân tích điểm yếu của bạn, tập trung vào các câu bạn đã làm sai.",
                 duration_minutes=len(selected) * 2,
                 classroom=target_class,

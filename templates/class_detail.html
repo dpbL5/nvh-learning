@@ -74,6 +74,9 @@
                     <button class="nvh-tab active" onclick="switchTab('examContent', this)">
                         <i class="bi bi-pencil-square me-1"></i> Bài thi
                     </button>
+                    <button class="nvh-tab" onclick="switchTab('docLibraryContent', this)">
+                        <i class="bi bi-archive me-1"></i> Kho tài liệu
+                    </button>
                     <button class="nvh-tab" onclick="switchTab('aiContent', this); initAIChat();">
                         <i class="bi bi-robot me-1" style="color:var(--color-danger);"></i> AI Trợ Giảng
                     </button>
@@ -93,11 +96,39 @@
                     </div>
                 </div>
 
+                <!-- Tab: Kho tài liệu -->
+                <div id="docLibraryContent" class="tab-content-pane" style="display:none;">
+                    <div
+                        style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;">
+                        <div
+                            style="padding:1rem 1.25rem;border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                            <div>
+                                <span style="font-weight:700;font-size:0.9rem;"><i class="bi bi-archive me-2"
+                                        style="color:var(--color-primary);"></i>Tài liệu RAG của lớp</span>
+                                <div style="font-size:0.72rem;color:var(--color-muted);">Nguồn kiến thức cho AI Trợ Giảng
+                                    và trình tạo câu hỏi</div>
+                            </div>
+                            <button class="btn btn-sm btn-primary" id="btnUploadDoc" style="display:none;"
+                                onclick="document.getElementById('docUploadInput').click()">
+                                <i class="bi bi-cloud-upload me-1"></i> Thêm tài liệu
+                            </button>
+                            <input type="file" id="docUploadInput" style="display:none"
+                                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="uploadRAGDocument(event)">
+                        </div>
+                        <div id="docLibraryList"></div>
+                        <div id="uploadingDocIndicator"
+                            style="display:none;padding:0.75rem;text-align:center;background:var(--color-bg);font-size:0.8rem;border-top:1px solid var(--color-border);">
+                            <span class="spinner-border spinner-border-sm me-2 text-primary"></span> Đang xử lý
+                            tài liệu...
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Tab: AI Trợ Giảng -->
                 <div id="aiContent" class="tab-content-pane" style="display:none;">
                     <div class="row g-3">
                         <!-- Chat Panel -->
-                        <div class="col-md-7">
+                        <div class="col-12">
                             <div
                                 style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;display:flex;flex-direction:column;height:520px;">
                                 <div
@@ -134,31 +165,6 @@
                                             <i class="bi bi-send-fill"></i>
                                         </button>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Documents Panel -->
-                        <div class="col-md-5">
-                            <div
-                                style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;height:520px;display:flex;flex-direction:column;">
-                                <div
-                                    style="padding:1rem 1.25rem;border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between;">
-                                    <span style="font-weight:700;font-size:0.875rem;"><i
-                                            class="bi bi-file-earmark-text me-2"
-                                            style="color:var(--color-primary);"></i>Tài liệu tham khảo</span>
-                                    <button class="btn btn-sm btn-outline-primary" id="btnUploadDoc"
-                                        style="display:none;"
-                                        onclick="document.getElementById('docUploadInput').click()">
-                                        <i class="bi bi-cloud-upload"></i>
-                                    </button>
-                                    <input type="file" id="docUploadInput" style="display:none"
-                                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="uploadRAGDocument(event)">
-                                </div>
-                                <div id="ragDocsList" style="flex:1;overflow-y:auto;"></div>
-                                <div id="uploadingDocIndicator"
-                                    style="display:none;padding:0.75rem;text-align:center;background:var(--color-bg);font-size:0.8rem;border-top:1px solid var(--color-border);">
-                                    <span class="spinner-border spinner-border-sm me-2 text-primary"></span> Đang xử lý
-                                    tài liệu...
                                 </div>
                             </div>
                         </div>
@@ -276,6 +282,52 @@
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
                 <button type="button" class="btn btn-copy-quiz" id="btnCopyQuiz" onclick="submitCopyQuiz()">
                     <i class="bi bi-files"></i>Sao chép
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Đổi tên tài liệu -->
+<div class="modal fade" id="renameDocModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil me-2 text-primary"></i>Đổi tên tài liệu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <label class="form-label fw-medium">Tên tài liệu</label>
+                <input type="text" id="renameDocTitle" class="form-control" maxlength="255">
+                <div id="renameDocError" class="text-danger small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="submitRenameDoc()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Sao chép tài liệu -->
+<div class="modal fade" id="copyDocModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-files me-2" style="color:#DB2777;"></i>Sao chép tài liệu
+                </h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-2">Tài liệu gốc: <strong id="copyDocSourceTitle"></strong></p>
+                <p class="text-muted small">Chọn lớp nhận bản sao. Toàn bộ nội dung và dữ liệu AI (embedding) được sao
+                    chép nguyên trạng sang lớp mới, không cần xử lý lại.</p>
+                <div id="copyDocClassList" class="list-group list-group-flush border rounded"></div>
+                <div id="copyDocError" class="text-danger small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="btnCopyDoc" onclick="submitCopyDoc()">
+                    <i class="bi bi-files me-1"></i>Sao chép
                 </button>
             </div>
         </div>

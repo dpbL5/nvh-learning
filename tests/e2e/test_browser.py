@@ -121,7 +121,9 @@ class BrowserE2ETestCase(StaticLiveServerTestCase):
         self.page.goto(self.url(f"/classes/{self.classroom.pk}/"))
         self.page.get_by_role("button", name="AI Trợ Giảng").click()
         self.page.locator("#aiContent").wait_for(state="visible")
-        self.page.get_by_text("Tài liệu tham khảo").wait_for()
+        self.page.get_by_role("button", name="Kho tài liệu").click()
+        self.page.locator("#docLibraryContent").wait_for(state="visible")
+        self.page.get_by_text("Tài liệu RAG của lớp").wait_for()
 
         self.page.goto(self.url("/exams/question-bank/"))
         self.page.get_by_role("heading", name="Ngân hàng câu hỏi").wait_for()

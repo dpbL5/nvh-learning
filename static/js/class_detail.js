@@ -508,18 +508,147 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`/api/ai/classes/${classId}/documents/`, {headers: authHeaders()});
             const docs = await res.json();
-            const listEl = document.getElementById('ragDocsList');
-            if (!docs.length) { listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--color-muted);font-size:0.8rem;">Chưa có tài liệu nào.</div>'; return; }
+            const listEl = document.getElementById('docLibraryList');
+            if (!listEl) return;
+            const isTeacher = currentRole === 'teacher' || currentRole === 'admin';
+            if (!docs.length) {
+                listEl.innerHTML = `<div class="empty-state" style="padding:2.5rem 1rem;">
+                    <div class="empty-icon"><i class="bi bi-archive"></i></div>
+                    <div class="empty-title">Chưa có tài liệu nào</div>
+                    <p class="empty-desc">${isTeacher ? 'Tải lên tài liệu để AI Trợ Giảng và trình tạo câu hỏi học từ nội dung của lớp.' : 'Lớp này chưa có tài liệu tham khảo.'}</p>
+                </div>`;
+                return;
+            }
             listEl.innerHTML = docs.map(d => {
                 const safeTitle = escapeHtml(d.title);
-                const deleteBtn = (currentRole === 'teacher' || currentRole === 'admin') ? `<button style="border:none;background:none;color:var(--color-danger);cursor:pointer;padding:0.25rem;" onclick="deleteRAGDocument(${d.id})" title="Xoá"><i class="bi bi-trash"></i></button>` : '';
-                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.875rem 1rem;border-bottom:1px solid var(--color-border);">
-                    <div style="display:flex;gap:0.75rem;align-items:center;">
-                        <i class="bi bi-file-earmark-pdf" style="color:var(--color-danger);font-size:1.2rem;"></i>
-                        <div><div style="font-size:0.82rem;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${safeTitle}">${safeTitle}</div><div style="font-size:0.7rem;color:var(--color-muted);">${new Date(d.uploaded_at).toLocaleDateString('vi-VN')}</div></div>
-                    </div>${deleteBtn}</div>`;
+                const openLink = d.file_url
+                    ? `<a href="${escapeHtml(d.file_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" title="Xem tài liệu"><i class="bi bi-box-arrow-up-right"></i></a>` : '';
+                let actions = '';
+                if (isTeacher) {
+                    actions = `
+                        <button class="btn btn-sm btn-outline-primary" data-title="${safeTitle}" onclick="openRenameDocModal(${d.id}, this.dataset.title)" title="Đổi tên"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-copy-quiz" data-title="${safeTitle}" onclick="openCopyDocModal(${d.id}, this.dataset.title)" title="Sao chép sang lớp khác"><i class="bi bi-files"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRAGDocument(${d.id})" title="Xoá"><i class="bi bi-trash"></i></button>`;
+                }
+                return `<div class="d-flex align-items-center justify-content-between gap-3 px-3 py-2 border-bottom">
+                    <div class="d-flex align-items-center gap-3" style="min-width:0;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:var(--color-danger-light,var(--color-primary-light));color:var(--color-danger);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
+                            <i class="bi bi-file-earmark-text"></i>
+                        </div>
+                        <div style="min-width:0;">
+                            <div style="font-weight:600;font-size:0.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${safeTitle}">${safeTitle}</div>
+                            <div style="font-size:0.72rem;color:var(--color-muted);"><i class="bi bi-cloud-upload me-1"></i>${new Date(d.uploaded_at).toLocaleDateString('vi-VN')}</div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-1 flex-shrink-0">${openLink}${actions}</div>
+                </div>`;
             }).join('');
         } catch(e) {}
+    }
+
+    window.openRenameDocModal = function(docId, title) {
+        window.renameDocId = docId;
+        const input = document.getElementById('renameDocTitle');
+        if (input) input.value = title || '';
+        const errEl = document.getElementById('renameDocError');
+        if (errEl) errEl.textContent = '';
+        new bootstrap.Modal(document.getElementById('renameDocModal')).show();
+    }
+
+    window.submitRenameDoc = async function() {
+        const docId = window.renameDocId;
+        if (!docId) return;
+        const title = document.getElementById('renameDocTitle').value.trim();
+        const errEl = document.getElementById('renameDocError');
+        if (!title) { if (errEl) errEl.textContent = 'Tên tài liệu không được để trống.'; return; }
+
+        const res = await fetch(`/api/ai/documents/${docId}/`, {
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify({ title })
+        });
+        if (res.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('renameDocModal'))?.hide();
+            showGlobalAlert('Đã đổi tên tài liệu.', 'success');
+            await loadRAGDocuments();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            if (errEl) errEl.textContent = err.title?.[0] || err.error || 'Đổi tên thất bại.';
+        }
+    }
+
+    window.openCopyDocModal = async function(docId, title) {
+        window.copySourceDocId = docId;
+        const titleEl = document.getElementById('copyDocSourceTitle');
+        if (titleEl) titleEl.textContent = title || '';
+        const errEl = document.getElementById('copyDocError');
+        if (errEl) errEl.textContent = '';
+        const list = document.getElementById('copyDocClassList');
+        list.innerHTML = '<div class="text-muted small p-2">Đang tải danh sách lớp...</div>';
+
+        const modal = new bootstrap.Modal(document.getElementById('copyDocModal'));
+        modal.show();
+
+        try {
+            const res = await fetch('/api/classes/', { headers: authHeaders() });
+            const data = await res.json();
+            const classes = Array.isArray(data) ? data : (data.results || []);
+            const selectable = classes.filter(c => String(c.id) !== String(classId));
+            if (!selectable.length) {
+                list.innerHTML = '<div class="text-muted small p-2">Bạn chưa có lớp học khác để sao chép.</div>';
+                return;
+            }
+            list.innerHTML = selectable.map(c => `
+                <label class="list-group-item d-flex align-items-center gap-2 py-2">
+                    <input class="form-check-input copy-doc-class-cb" type="checkbox" value="${c.id}">
+                    <span class="fw-semibold">${escapeHtml(c.name)}</span>
+                    <span class="text-muted small ms-auto">${escapeHtml(c.subject_name || '')}</span>
+                </label>
+            `).join('');
+        } catch (e) {
+            list.innerHTML = '<div class="text-danger small p-2">Không tải được danh sách lớp.</div>';
+        }
+    }
+
+    window.submitCopyDoc = async function() {
+        const docId = window.copySourceDocId;
+        if (!docId) return;
+        const ids = Array.from(document.querySelectorAll('.copy-doc-class-cb:checked')).map(cb => cb.value);
+        const errEl = document.getElementById('copyDocError');
+        if (!ids.length) {
+            if (errEl) errEl.textContent = 'Chọn ít nhất một lớp.';
+            return;
+        }
+
+        const btn = document.getElementById('btnCopyDoc');
+        if (btn) btn.disabled = true;
+        if (errEl) errEl.textContent = '';
+
+        try {
+            const res = await fetch(`/api/ai/documents/${docId}/copy/`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({ classroom_ids: ids })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const message = data.error
+                    || data.detail
+                    || 'Sao chép thất bại.';
+                if (errEl) errEl.textContent = message;
+                return;
+            }
+
+            bootstrap.Modal.getInstance(document.getElementById('copyDocModal'))?.hide();
+            const skipped = data.skipped?.length || 0;
+            let msg = `Đã sao chép tài liệu sang ${data.created.length} lớp`;
+            if (skipped) msg += `, bỏ qua ${skipped} lớp không hợp lệ`;
+            showGlobalAlert(msg + '.', 'success');
+        } catch (e) {
+            if (errEl) errEl.textContent = 'Lỗi kết nối.';
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     }
 
     window.uploadRAGDocument = async function(e) {
