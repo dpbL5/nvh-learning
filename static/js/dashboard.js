@@ -198,6 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/exams/student-progress/', { headers: authH() });
             if (!res.ok) return;
             const data = await res.json();
+
+            // Luôn hiển thị 2 nút AI (Gợi ý lộ trình + Quick Test) cho học sinh
+            const aiActionsAlways = document.getElementById('aiLearningActions');
+            if (aiActionsAlways) aiActionsAlways.style.display = 'block';
             
             // Render Graph
             const ctx = document.getElementById('progressChart').getContext('2d');
