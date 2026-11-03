@@ -48,10 +48,19 @@ def _notify_student(student_id, quiz):
 
 @receiver(post_save, sender='exams.Quiz')
 def notify_students_on_quiz_publish(sender, instance, created, **kwargs):
+    from .models import Notification
+
     quiz = instance
-    if not quiz.is_published or quiz.assigned_to_id is not None:
-        return
-    if quiz.publish_at and quiz.publish_at > timezone.now():
+    visible = (
+        quiz.is_published
+        and quiz.assigned_to_id is None
+        and not (quiz.publish_at and quiz.publish_at > timezone.now())
+    )
+    if not visible:
+        Notification.objects.filter(
+            verb=Notification.VERB_PUBLISHED_QUIZ,
+            target_id=quiz.id,
+        ).delete()
         return
 
     from classes.models import ClassStudent

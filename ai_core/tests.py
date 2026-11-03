@@ -427,6 +427,26 @@ class RAGServiceTests(SimpleTestCase):
             content='LAN là gì?', task_type='RETRIEVAL_QUERY', output_dimensionality=768,
         )
 
+    def test_explanation_prompt_is_tailored_to_question_type(self):
+        from django.core.cache import cache
+
+        for question_type, marker in (
+            ('multiple_choice', 'câu trắc nghiệm'),
+            ('true_false', 'bốn nhận định độc lập'),
+            ('short_answer', 'câu trả lời ngắn'),
+        ):
+            with self.subTest(question_type=question_type):
+                cache.clear()
+                self.ai.generate_content.return_value.text = 'Giải thích'
+                result = AIGeneratorService.explain_wrong_answer(
+                    f'Câu hỏi {question_type}', 'Đáp án đúng', 'Câu trả lời của học sinh',
+                    question_type=question_type,
+                )
+                self.assertEqual(result, 'Giải thích')
+                prompt = self.ai.generate_content.call_args.args[0]
+                self.assertIn(marker, prompt)
+                self.assertIn('Câu trả lời của học sinh:', prompt)
+
 
 class AICoreApiTests(APITestCase):
 	def setUp(self):

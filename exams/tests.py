@@ -1,3 +1,5 @@
+import random
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -195,10 +197,133 @@ class ExamsApiTests(APITestCase):
 		self.assertEqual(len(res.data['options']), 2)
 		self.assertEqual(res.data['options'][0]['text'], 'PA A')
 
+	def test_quiz_start_shuffles_questions_stably_per_attempt(self):
+		for index in range(5):
+			question = Question.objects.create(
+				question_type='multiple_choice',
+				text=f'Câu phụ {index}',
+				subject=self.subject,
+				created_by=self.teacher,
+			)
+			Option.objects.create(question=question, text='Đúng', is_correct=True)
+			Option.objects.create(question=question, text='Sai', is_correct=False)
+			QuizQuestion.objects.create(quiz=self.quiz, question=question, order=index + 2, points=1.0)
+
+		self._auth('student_exam', 'StudentPass123')
+		first = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		self.assertEqual(first.status_code, status.HTTP_200_OK)
+		first_ids = [row['id'] for row in first.data['questions']]
+
+		second = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		second_ids = [row['id'] for row in second.data['questions']]
+
+		# Cùng một lượt thi: tải lại không đổi thứ tự.
+		self.assertEqual(first_ids, second_ids)
+		# Vẫn đủ câu, chỉ đổi thứ tự.
+		canonical_ids = list(
+			QuizQuestion.objects.filter(quiz=self.quiz).order_by('order').values_list('id', flat=True)
+		)
+		self.assertEqual(sorted(first_ids), sorted(canonical_ids))
+
+		# Nộp bài theo ID vẫn chấm đúng dù thứ tự hiển thị đã xáo.
+		answers = []
+		for row in first.data['questions']:
+			question = Question.objects.get(pk=row['question']['id'])
+			correct = question.options.get(is_correct=True)
+			answers.append({'quiz_question_id': row['id'], 'selected_option_id': correct.pk})
+		res = self.client.post(
+			f"/api/exams/attempt/{first.data['attempt_id']}/submit/",
+			{'answers': answers}, format='json',
+		)
+		self.assertEqual(res.status_code, status.HTTP_200_OK)
+		self.assertEqual(res.data['score'], 10.0)
+
+	def test_quiz_start_orders_mcq_first_and_true_false_last(self):
+		for question_type, order in (
+			('true_false', 2),
+			('multiple_choice', 3),
+			('true_false', 4),
+			('short_answer', 5),
+		):
+			question = Question.objects.create(
+				question_type=question_type,
+				text=f'Câu {question_type} {order}',
+				subject=self.subject,
+				created_by=self.teacher,
+			)
+			QuizQuestion.objects.create(quiz=self.quiz, question=question, order=order, points=1.0)
+
+		self._auth('student_exam', 'StudentPass123')
+		res = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+		types = [row['question']['question_type'] for row in res.data['questions']]
+		self.assertEqual(len(types), 5)
+		# Trắc nghiệm (kể cả câu có sẵn trong setUp) đứng đầu.
+		self.assertEqual(types[:2], ['multiple_choice', 'multiple_choice'])
+		# Đúng/sai đứng cuối.
+		self.assertEqual(types[-2:], ['true_false', 'true_false'])
+		self.assertEqual(types[2], 'short_answer')
+
+	def test_quiz_start_shuffles_options_and_strips_embedded_labels(self):
+		question = Question.objects.create(
+			question_type='multiple_choice',
+			text='Chọn phương án đúng',
+			subject=self.subject,
+			created_by=self.teacher,
+		)
+		options = [
+			Option.objects.create(
+				question=question,
+				text=f'{label}. Nội dung {index}',
+				is_correct=(index == 0),
+			)
+			for index, label in enumerate('ABCD')
+		]
+		QuizQuestion.objects.create(quiz=self.quiz, question=question, order=2, points=1.0)
+
+		self._auth('student_exam', 'StudentPass123')
+		first = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		row = next(r for r in first.data['questions'] if r['question']['id'] == question.id)
+
+		# Nhãn A./B./... bị bỏ khỏi nội dung phương án.
+		self.assertEqual(
+			sorted(option['text'] for option in row['question']['options']),
+			['Nội dung 0', 'Nội dung 1', 'Nội dung 2', 'Nội dung 3'],
+		)
+
+		# Thứ tự phương án được xáo theo seed của lượt thi.
+		returned_ids = [option['id'] for option in row['question']['options']]
+		expected_ids = [option.id for option in options]
+		random.Random(f"{first.data['attempt_id']}:{row['id']}:options").shuffle(expected_ids)
+		self.assertEqual(returned_ids, expected_ids)
+
+		# Tải lại trong cùng lượt không đổi thứ tự.
+		second = self.client.post(f'/api/exams/{self.quiz.id}/start/', {}, format='json')
+		row2 = next(r for r in second.data['questions'] if r['question']['id'] == question.id)
+		self.assertEqual(returned_ids, [option['id'] for option in row2['question']['options']])
+
+		# Trang xem lại dùng cùng thứ tự phương án với lúc làm bài.
+		submit = self.client.post(
+			f"/api/exams/attempt/{first.data['attempt_id']}/submit/",
+			{'answers': [
+				{'quiz_question_id': row['id'], 'selected_option_id': options[0].id},
+			]},
+			format='json',
+		)
+		self.assertEqual(submit.status_code, status.HTTP_200_OK)
+		review_row = next(
+			r for r in submit.data['questions'] if r['question']['id'] == question.id
+		)
+		self.assertEqual(
+			[option['id'] for option in review_row['question']['options']],
+			returned_ids,
+		)
+
 	def test_teacher_progress_endpoint_for_teacher_and_admin(self):
 		# create completed attempts for current quiz
 		QuizAttempt.objects.create(quiz=self.quiz, student=self.student, score=8.0, is_completed=True)
-		QuizAttempt.objects.create(quiz=self.quiz, student=self.student, score=9.5, is_completed=True)
+		QuizAttempt.objects.create(quiz=self.quiz, student=self.student2, score=9.5, is_completed=True)
 
 		# teacher should see data
 		self._auth('teacher_exam', 'TeacherPass123')

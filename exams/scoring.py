@@ -4,6 +4,7 @@ Everything here works on in-memory objects (questions, options, payload dicts)
 and never touches the database, so it can be unit-tested with mock data.
 """
 
+import random
 import re
 from fractions import Fraction
 
@@ -75,6 +76,23 @@ def calculate_score(earned_points, total_points):
     if not total_points or total_points <= 0:
         return 0.0
     return min(10.0, round(earned_points / total_points * 10, 2))
+
+
+def shuffle_mcq_options(quiz_question, attempt_id):
+    """Xáo phương án trắc nghiệm ổn định theo lượt thi.
+
+    Dùng cùng seed cho lúc làm bài và lúc xem lại để nhãn A/B/C/D khớp nhau.
+    """
+    question = quiz_question.question
+    if getattr(question, 'question_type', None) != QUESTION_TYPE_MULTIPLE_CHOICE:
+        return
+    options = list(question.options.all())
+    random.Random(f'{attempt_id}:{quiz_question.pk}:options').shuffle(options)
+    cache = getattr(question, '_prefetched_objects_cache', None)
+    if cache is None:
+        cache = {}
+        question._prefetched_objects_cache = cache
+    cache['options'] = options
 
 
 def _option_id(value):

@@ -237,7 +237,7 @@ class ClassStudentRemoveView(APIView):
         try:
             membership = ClassStudent.objects.get(classroom=classroom, student_id=student_id)
             membership.delete()
-            return Response({'detail': 'Đã xoá học sinh khỏi lớp.'}, status=status.HTTP_204_NO_CONTENT)
+            return Response({'detail': 'Đã xoá học sinh khỏi lớp.'}, status=status.HTTP_200_OK)
         except ClassStudent.DoesNotExist:
             return Response({'detail': 'Học sinh không có trong lớp này.'}, status=status.HTTP_404_NOT_FOUND)
 

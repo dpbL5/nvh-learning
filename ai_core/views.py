@@ -303,9 +303,9 @@ class UploadClassDocumentView(APIView):
             if file_obj:
                 ext = os.path.splitext(file_obj.name)[1]
                 with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
+                    tmp_file_path = tmp_file.name
                     for chunk in file_obj.chunks():
                         tmp_file.write(chunk)
-                    tmp_file_path = tmp_file.name
 
                 # Upload lên Cloudinary trước khi tạo record Document (nếu client không tự upload)
                 from .services.cloudinary_service import upload_to_cloudinary
@@ -319,7 +319,13 @@ class UploadClassDocumentView(APIView):
                 import requests
                 ext = os.path.splitext(file_name)[1]
                 with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
+                    tmp_file_path = tmp_file.name
                     resp = requests.get(file_url, stream=True, timeout=30, allow_redirects=False)
+                    status_code = getattr(resp, 'status_code', None)
+                    if getattr(resp, 'is_redirect', False) is True or (
+                        isinstance(status_code, int) and 300 <= status_code < 400
+                    ):
+                        raise ValueError('Đường dẫn tài liệu không được chuyển hướng.')
                     resp.raise_for_status()
                     total_bytes = 0
                     for chunk in resp.iter_content(chunk_size=8192):
@@ -327,7 +333,6 @@ class UploadClassDocumentView(APIView):
                         if total_bytes > MAX_REMOTE_FILE_BYTES:
                             raise ValueError('Tài liệu vượt quá dung lượng cho phép.')
                         tmp_file.write(chunk)
-                    tmp_file_path = tmp_file.name
                 final_file_url = file_url
                 final_public_id, derived_resource_type = cloudinary_asset_from_url(file_url)
                 final_resource_type = derived_resource_type or 'raw'
@@ -704,6 +709,14 @@ class AIGenerateFromRAGView(APIView):
 
         _get_class_for_user(request.user, class_id)
 
+        if document_id:
+            from ai_core.models import Document
+            if not Document.objects.filter(id=document_id, classroom_id=class_id).exists():
+                return Response(
+                    {"error": "Tài liệu không thuộc lớp học này."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         try:
             questions_data = AIGeneratorService.generate_from_rag(
                 topic=topic,
@@ -825,6 +838,7 @@ class AIBulkSaveQuestionsView(APIView):
                     grade=question_grade,
                     created_by=request.user,
                 )
+                saved_questions.append(question.id)
 
                 # 1.1 Quét ImageBlock trong Question.stem
                 self._link_images(question, content_json, placement='stem', uploaded_by=request.user)
@@ -862,8 +876,6 @@ class AIBulkSaveQuestionsView(APIView):
                         order=max_order + 1,
                         points=0.0,
                     )
-
-                saved_questions.append(question.id)
 
             if quiz:
                 refresh_quiz_question_points(quiz)
@@ -1169,6 +1181,9 @@ class AIExplainWrongAnswerView(APIView):
         if getattr(request.user.role, 'name', None) not in ['student', 'teacher', 'admin'] and not request.user.is_superuser:
             return Response({"error": "Bạn không có quyền thực hiện chức năng này."}, status=status.HTTP_403_FORBIDDEN)
             
+        question_type = request.data.get('question_type')
+        if question_type not in ('multiple_choice', 'true_false', 'short_answer'):
+            question_type = None
         question_text = request.data.get('question_text')
         correct_answer = request.data.get('correct_answer')
         student_answer = request.data.get('student_answer')
@@ -1180,7 +1195,8 @@ class AIExplainWrongAnswerView(APIView):
             explanation = AIGeneratorService.explain_wrong_answer(
                 question_text=str(question_text)[:2000],
                 correct_answer=str(correct_answer)[:500],
-                student_answer=str(student_answer)[:500]
+                student_answer=str(student_answer)[:500],
+                question_type=question_type,
             )
             return Response({"explanation": explanation})
         except Exception:

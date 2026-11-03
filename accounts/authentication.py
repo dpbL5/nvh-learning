@@ -1,9 +1,13 @@
+from urllib.parse import urlparse
+
 from django.conf import settings
+from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
 ACCESS_COOKIE = 'access_token'
 REFRESH_COOKIE = 'refresh_token'
+SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS', 'TRACE')
 
 
 class CookieJWTAuthentication(JWTAuthentication):
@@ -23,8 +27,26 @@ class CookieJWTAuthentication(JWTAuthentication):
         raw_token = request.COOKIES.get(ACCESS_COOKIE)
         if not raw_token:
             return None
+        _enforce_cookie_origin(request)
         validated_token = self.get_validated_token(raw_token)
         return self.get_user(validated_token), validated_token
+
+
+def _enforce_cookie_origin(request):
+    """Reject cross-origin mutations authenticated by cookie (CSRF defence)."""
+    if request.method in SAFE_METHODS:
+        return
+    origin = request.META.get('HTTP_ORIGIN')
+    if not origin:
+        return
+    allowed = origin in getattr(settings, 'CSRF_TRUSTED_ORIGINS', [])
+    if not allowed:
+        try:
+            allowed = urlparse(origin).netloc == request.get_host()
+        except Exception:
+            allowed = False
+    if not allowed:
+        raise PermissionDenied('Yêu cầu khác nguồn đã bị từ chối.')
 
 
 def _cookie_kwargs(path, max_age):

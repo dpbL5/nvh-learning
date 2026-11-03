@@ -64,7 +64,7 @@ async function startQuiz() {
 function renderQuestions() {
     const container = document.getElementById('questionsContainer');
     document.getElementById('totalQCount').textContent = quizQuestions.length;
-    quizQuestions.sort((a,b) => a.order - b.order);
+    // Giữ nguyên thứ tự đã được server xáo trộn cho lượt thi này.
     container.innerHTML = quizQuestions.map((qq, idx) => {
         const q = qq.question;
         const qType = q.question_type || 'multiple_choice';
@@ -534,8 +534,10 @@ window.explainWithAI = async function(qqId) {
     
     function optionText(opt) {
         var t = (opt.text || '').trim();
-        if (t) return t;
-        return (opt.content_json || []).filter(function(b){return b.type==='text'}).map(function(b){return b.value}).join(' ');
+        if (!t) {
+            t = (opt.content_json || []).filter(function(b){return b.type==='text'}).map(function(b){return b.value}).join(' ');
+        }
+        return t.replace(/^\s*(?:\(?[A-Da-d]\)|\d{1,2}[\.\)]|[A-Da-d][\.\)\/\-\:])\s*/, '').trim();
     }
     
     if (q.question_type === 'multiple_choice') {
@@ -557,8 +559,11 @@ window.explainWithAI = async function(qqId) {
             
             var ans = studentAns.find(function(a){return a.selected_option === opt.id;});
             if (ans) {
-                var studentChoseCorrect = (ans.is_correct === opt.is_correct) ? opt.is_correct : !opt.is_correct;
-                studentText += String.fromCharCode(97+i) + ') ' + optText + ' -> ' + (studentChoseCorrect ? 'Đúng' : 'Sai') + '\\n';
+                // Ưu tiên answer_value; với dữ liệu cũ suy ra từ is_correct.
+                var studentChose = (typeof ans.answer_value === 'boolean')
+                    ? ans.answer_value
+                    : (ans.is_correct ? opt.is_correct : !opt.is_correct);
+                studentText += String.fromCharCode(97+i) + ') ' + optText + ' -> ' + (studentChose ? 'Đúng' : 'Sai') + '\\n';
             } else {
                 studentText += String.fromCharCode(97+i) + ') (Bỏ trống)\\n';
             }
@@ -573,6 +578,7 @@ window.explainWithAI = async function(qqId) {
             method: 'POST',
             headers: quizAuthHeaders(),
             body: JSON.stringify({
+                question_type: q.question_type,
                 question_text: qText,
                 correct_answer: correctText,
                 student_answer: studentText

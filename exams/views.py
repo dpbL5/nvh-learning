@@ -13,7 +13,7 @@ from django.core.files.base import ContentFile
 from datetime import timedelta
 from classes.models import Class, ClassStudent
 from .models import Question, Option, Quiz, QuizQuestion, QuizAttempt, StudentAnswer, ImageBank, QuestionImage
-from .scoring import calculate_score, score_submission
+from .scoring import calculate_score, score_submission, shuffle_mcq_options
 from .serializers import (
     QuestionSerializer, OptionSerializer, QuizSerializer,
     QuizQuestionSerializer, QuizAttemptSerializer, QuizQuestionPublicSerializer,
@@ -21,6 +21,7 @@ from .serializers import (
 )
 import hashlib
 import os
+import random
 import uuid
 import logging
 from io import BytesIO
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 MAX_IMAGE_PIXELS = 40_000_000
 ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'}
 ALLOWED_IMAGE_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'}
+QUESTION_TYPE_DISPLAY_ORDER = {'multiple_choice': 0, 'short_answer': 1, 'true_false': 2}
 
 
 def _is_valid_image_bytes(data):
@@ -850,12 +852,21 @@ class QuizStartView(APIView):
             serializer = QuizAttemptReviewSerializer(attempt, context={'request': request})
             return Response(serializer.data)
 
-        questions = (
+        questions = list(
             QuizQuestion.objects
             .filter(quiz=quiz)
             .select_related('question')
             .prefetch_related('question__options', 'question__question_images__image', 'question__question_images__uploaded_by')
         )
+        # Xáo trộn ổn định theo lượt thi: mỗi học sinh có thứ tự khác nhau,
+        # nhưng tải lại trang trong cùng lượt vẫn giữ nguyên thứ tự.
+        # Trắc nghiệm luôn đứng đầu, đúng/sai luôn đứng cuối.
+        random.Random(attempt.pk).shuffle(questions)
+        questions.sort(
+            key=lambda qq: QUESTION_TYPE_DISPLAY_ORDER.get(qq.question.question_type, 1)
+        )
+        for quiz_question in questions:
+            shuffle_mcq_options(quiz_question, attempt.pk)
         serializer = QuizQuestionPublicSerializer(questions, many=True)
 
         return Response({
